@@ -1,0 +1,373 @@
+blipp NYTimes
+	peelParams = orient=landscape,scale=140,type=fit,dy=0,dx=0;  
+	minimumVersion = 15;
+	screenScaleRotate = no;
+//playSound(filename,delayms,loop);
+	scene default
+
+		files = [ NYTimes.mp4, NYTimes.mp3 ];
+
+		var sW = system.screenWidth*1.003;
+		var sH = system.screenHeight*1.003;
+ 		
+ 		//==============================================================================
+		//=									ANIMATIONS								   =
+		//==============================================================================
+
+		animation 		Sf		type = scalefactor_xyz;	end
+		animation 		Sx		type = scalefactor_x;	end
+		animation 		Sy		type = scalefactor_y;	end
+		animation 		Sz		type = scalefactor_z;	end
+		animation 		Txyz	type = translate_xyz;	end
+		animation 		Tx		type = translate_x;		end
+		animation 		Ty		type = translate_y;		end
+		animation 		Tz		type = translate_z;		end
+		animation 		Rx		type = rotate_global;	axis = 1,0,0;	direction = auto;	end
+		animation 		Ry		type = rotate_global;	axis = 0,1,0;	direction = auto;	end
+		animation 		Rz		type = rotate_global;	axis = 0,0,1;	direction = auto;	end
+		animation 		RLx		type = rotate_local;	axis = 1,0,0;	direction = auto;	end
+		animation 		RLy		type = rotate_local;	axis = 0,1,0;	direction = auto;	end
+		animation 		RLz		type = rotate_local;	axis = 0,0,1;	direction = auto;	end
+		animation 		Fade	type = fade;			end
+		animation 		Tex		type = texture;			end
+		animation 		Vert	type = vertex;			end
+
+		animation 		MySf		type = scalefactor_xyz; start = 44,44,0; stop = 55,55,0; time = 500; chain = MySfBack; 	end
+		animation 		MySfBack		type = scalefactor_xyz;	start = 55,55,0; stop = 44,44,0; time = 500; chain = MySf; end
+
+       /* animation myRotate
+        	direction = positive;
+            type = rotate_global;
+            axis = 0,0,1;
+            start=0;
+            stop = 3;
+            time = 200;
+            chain = myRotateBack;
+        end
+
+        animation myRotateBack
+        	direction = negative;
+        	type = rotate_global;
+            axis = 0,0,1;
+            start = 3;
+            stop = 0;
+            time = 200;
+            chain = myRotate;
+        end
+
+        animation myTrans
+            type = translate_y;
+            start=0;
+            stop = 10;
+            time = 150;
+            chain = myTransBack;
+        end
+
+        animation myTransBack       	
+        	type = translate_y;
+            start = 10;
+            stop = 0;
+            time = 150;
+            chain = myTrans;
+        end*/
+
+        animation myTransDrone
+            type = translate_y;
+            start = 200;
+            stop = 210;
+            time = 1500;
+            chain = myTransDroneBack;
+        end
+
+        animation myTransDroneBack       	
+        	type = translate_y;
+            start = 210;
+            stop = 200;
+            time = 1500;
+            chain = myTransDrone;
+        end
+		//==============================================================================
+		//= 								FUNCTIONS								   =
+		//==============================================================================
+//scaleFactor = 685/1500, 385/1500, 0;
+//location = 7.5/1500, 32.5/1500, 0;
+		 function onTrackLost
+		     close();
+		 end 
+
+		 function onShow
+	       uiVisible(navBar, no);
+	       call(showLayers);
+
+	     end
+
+	    function showLayers
+	    	show(Layers);
+	     	
+	    	bindAnimation(Fade, Ground, 0, stop = 1, time = 500);
+	    	bindAnimation(Fade, Drone, 700, stop = 1, time = 500);
+	     	
+	     	bindAnimation(Fade, FemaleReporter, 0, stop = 1, time = 500);
+			bindAnimation(Fade, MaleReporter, 0, stop = 1, time = 500);
+
+	     	bindAnimation(Fade, FourthLayer, 300, stop = 1, time = 500);
+	     	bindAnimation(Fade, ThirdLayer, 500, stop = 1, time = 500);
+	     	bindAnimation(Fade, SecondLayer, 700, stop = 1, time = 500);
+
+	     	bindAnimation(Fade, VidBox, 900, stop = 1, time = 500);
+			bindAnimation(Fade, VidBoxFrame, 900, stop = 1, time = 500);
+
+	     	bindAnimation(myTransDrone, ParentDrone);
+
+	     	call(startConversation,0);
+	     			
+	    end 
+
+	    function startConversation
+	    	playSound(NYTimes.mp3,,);	
+			playVideo(VidBox, 9000, NYTimes.mp4, , no); 
+			set(VidBox.clickable, 0, no);
+			call(makeClickable, 62);
+			call(animateVidBox, 9);
+
+			//bindAnimation(myRotate, ParentFemaleReporter);
+			//stopAnimation(myRotate, 5000, ParentFemaleReporter);
+
+			bindAnimation(Sf, ParentFemaleReporter, 0, stop = [2000, 2000, 0], time = 1000);
+			bindAnimation(Sf, ParentMaleReporter, 5000, stop = [2000, 2000, 0], time = 1000);
+
+			bindAnimation(myTrans, ParentMaleReporter, 5001);
+	
+	    end
+
+	    function animateVidBox
+	    	bindAnimation(Fade, OrangePlayButton, 0, stop = 0, time = 500);
+
+	    	bindAnimation(Sf, ParentVid, 0, stop = [4.5, 4.5, 100], time = 750);
+			bindAnimation(Txyz, ParentVid, stop = [0,30,100], time = 500);
+			bindAnimation(Rz, VidBox, 0, stop = 3.28, time = 500);
+
+			bindAnimation(Fade, ParentMaleReporter, 0, stop=0, time=500);
+			bindAnimation(Fade, ParentFemaleReporter, 0, stop=0, time=500);
+
+			call(animateVidBoxBack, 52);
+
+			//stopAnimation(myTrans, 0, ParentMaleReporter);
+			stopAnimation(MySf, 0, OrangePlayButton);
+
+			bindAnimation(Sf, ParentVidFrame, 0, stop = [4.6, 4.6, 100], time = 750);
+			bindAnimation(Txyz, ParentVidFrame, stop = [0,30,100], time = 500);
+			bindAnimation(Rz, VidBoxFrame, 0, stop = 3.28, time = 500);
+
+			bindAnimation(Tx, ParentFemaleReporter, 0, stop = 125, time = 250);
+			bindAnimation(Tx, ParentMaleReporter, 0, stop = -150, time = 250);
+		end
+
+	    function animateVidBoxBack
+	    	bindAnimation(Fade, OrangePlayButton, 500, stop = 1, time = 500);
+
+	    	bindAnimation(Sf, ParentVid, 0, stop = [1, 1, 1], time = 500);
+			bindAnimation(Txyz, ParentVid, stop = [100, -40, 100], time = 500);
+			bindAnimation(Rz, VidBox, 0, stop = -3.28, time = 500);
+
+			bindAnimation(Fade, ParentMaleReporter, 0, stop=1, time=500);
+			bindAnimation(Fade, ParentFemaleReporter, 0, stop=1, time=500);
+
+			bindAnimation(Sf, ParentVidFrame, 0, stop = [1, 1, 1], time = 500);
+			bindAnimation(Txyz, ParentVidFrame, stop = [100, -40, 100], time = 500);
+			bindAnimation(Rz, VidBoxFrame, 0, stop = -3.28, time = 500);
+
+			bindAnimation(MySf, OrangePlayButton, 600);
+
+			bindAnimation(Tx, ParentFemaleReporter, 0, stop = 0, time = 500);
+			bindAnimation(Tx, ParentMaleReporter, 0, stop = 0, time = 500);
+
+			bindAnimation(Sf, ParentFemaleReporter, 0, stop = [1500, 1500, 0], time = 500);
+			bindAnimation(Sf, ParentMaleReporter, 0, stop = [1500, 1500, 0], time = 500);
+
+	    end
+		
+		function makeClickable
+			set(VidBox.clickable, 0, yes);
+		end
+		//==============================================================================
+		//=									CLASSES								       =
+		//==============================================================================
+
+		class system_plane
+		  	mesh 				= system.plane;
+			orientation			= 0,0,1,0;
+			location			= 0,0,0;
+			scaleFactor 		= 1,1,1;
+			scale 				= 1;
+			alpha 				= 0;		
+			type 				= phantom;
+			transformMode		= enhanced;
+			clickable 			= no;
+			hidden				= yes;	
+			texture  			= trans.png;	
+		end
+
+////	SCREEN SPACE:
+		
+		class overlay		
+			mesh 				= system.plane;
+			scale				= 1;
+			alpha 				= 0;			
+			type				= phantom;
+			transformMode		= enhanced;
+			clickable 			= no;	
+			attachment			= marker;
+			hidden				= yes;	
+			texture  			= trans.png;
+			orientation = 0,0,1,0;
+			location = 0,0,0;
+		end
+
+	////	SCREEN SPACE LANDSCAPE:
+			class overlayL 		: overlay 	orientation	= 0,0,1,0;											end
+	////	SCREEN SPACE PORTRAIT:
+			class overlayP		: overlay 	orientation	 = 0,0,1,90;										end		
+			class PC 		: overlayP 	location = 0,0,0;													end
+			class PCFitW	: overlayP 	location = 0,0,0;			width = sW;								end
+			class PCFitH	: overlayP 	location = 0,0,0;			height = sH;							end				
+	
+
+	//==============================================================================
+	//=									MODELS								       =
+	//==============================================================================
+
+		model Ground : overlay
+			//parent = ParentAll;
+			textureScale = 800/1024, 647/1024;
+			texture = BG.png, BG-A.png;
+			scaleFactor = 802, 647, 0;
+			//location = 0, -350, 0;
+			location = 0,0,0;
+			groups = Layers;
+		end
+
+		model ParentAll : overlay
+		    location =0,0,1;
+			scaleFactor = 1500, 1500, 1;
+		end
+
+		model ParentDrone : overlay
+			location = 100, 200, 130;
+			scaleFactor = 1, 1, 1;
+		end
+
+		model ParentVidFrame : overlay
+			location = 100, -40, 100;
+			scaleFactor = 1, 1, 1;
+		end
+
+		model ParentVid : overlay			
+			location = 100, -40, 100;
+			scaleFactor = 1, 1, 1;
+		end
+
+		model ParentMaleReporter : overlay
+			location =0,0,150;
+			scaleFactor = 1500, 1500, 0;
+		end
+
+		model ParentFemaleReporter : overlay
+			location =0,0,150;
+			scaleFactor = 1500, 1500, 0;
+		end
+
+		model FourthLayer : overlay
+		parent = ParentAll;
+		textureScale = 743/1024, 531/1024;
+		texture = FourthLayer.jpg, FourthLayer-A.png;
+		scaleFactor = 745/1500, 533/1500, 0;
+		location = 2.5/1500, -5.5/1500, 0;
+		groups = Layers;
+		end
+
+		model ThirdLayer : overlay
+		parent = ParentAll;
+		textureScale = 675/1024, 499/512;
+		texture = ThirdLayer.jpg, ThirdLayer-A.png;
+		scaleFactor = 677/1500, 501/1500, 0;
+		location = 23.5/1500, 12.5/1500, 50;
+		groups = Layers;
+		end
+
+		model SecondLayer : overlay
+		parent = ParentAll;
+		textureScale = 645/1024, 366/512;
+		texture = SecondLayer.jpg, SecondLayer-A.png;
+		scaleFactor = 730/1500, 435/1500, 0;
+		location = -15/1500, 20.5/1500, 100;
+		groups = Layers;
+		end
+
+		model Drone : overlay
+		parent = ParentDrone;
+		textureScale = 93/128, 64/64;
+		texture = Drone.jpg, Drone-A.png;
+		scaleFactor = 93, 64, 0;
+		location = 0, 0, 0;
+		groups = Layers;
+		end
+
+		model VidBox : overlay
+		parent = ParentVid;
+		textureScale = 683/1024, 383/512;
+		texture = VidBox.jpg, VidBox-A.png;	
+		location=0,0,0;
+		scaleFactor = 138,78,0;	
+		clickable = yes;
+		groups = Layers;
+		orientation		= 0 ,0 ,1 , -3.28;
+		 	function onClick
+		 		call(startConversation);
+		 		bindAnimation(Fade, OrangePlayButton, 0, stop = 0, time = 500);
+		 	end
+		end
+
+		model VidBoxFrame : overlay
+		
+		parent = ParentVidFrame;
+		textureScale = 683/1024, 383/512;
+		texture = VidBox.jpg, VidBox-A.png;
+		location=0,0,0;
+		scaleFactor = 138,78,0;
+		groups = Layers;
+		orientation		= 0 ,0 ,1 , -3.28;
+		end
+
+		model OrangePlayButton : overlay		
+		parent = ParentVid;
+		textureScale = 184/256, 184/256;
+		texture = orangePlay.png, orangePlay-A.png;
+		location=0,0,1;
+		scaleFactor = 44,44,0;
+		groups = Layers;
+		end
+
+
+		model FemaleReporter : overlay
+		parent = ParentFemaleReporter;
+		textureScale = 198/256, 244/256;
+		texture = femaleReporter.jpg, femaleReporter-A.png;
+		scaleFactor = 200/1500, 246/1500, 0;
+		location = 107/1500, -203/1500, 0;
+		groups = Layers;
+		end
+
+		model MaleReporter : overlay
+		parent = ParentMaleReporter;
+		textureScale = 200/256, 238/256;
+		texture = maleReporter.jpg, maleReporter-A.png;
+		scaleFactor = 202/1500, 240/1500, 0;
+		location = -106/1500, -191/1500, 0;
+		groups = Layers;
+		end
+
+
+	end
+
+end

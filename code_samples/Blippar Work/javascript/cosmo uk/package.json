@@ -1,0 +1,13 @@
+{
+  "version" : "1.0.0",
+  "description" : "",
+  "main" : "cosmoCover.js",
+  "blipp" : {
+    "title" : "Cosmopolitan",
+    "shortTitle" : "Cosmopolitan"
+  },
+  "dependencies" : {
+    "blippar" : "1.3.27"
+  },
+  "name" : "Cosmopolitan"
+}

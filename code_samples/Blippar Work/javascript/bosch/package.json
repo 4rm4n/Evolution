@@ -1,0 +1,13 @@
+{
+  "version" : "1.0.0",
+  "description" : "Blippar Blender Exporter 2015",
+  "main" : "example.js",
+  "blipp" : {
+    "title" : "Bosch Isı Sistemleri",
+    "shortTitle" : "Bosch Isı Sistemleri"
+  },
+  "dependencies" : {
+    "blippar" : "1.3.13"
+  },
+  "name" : "Bosch Isı Sistemleri"
+}

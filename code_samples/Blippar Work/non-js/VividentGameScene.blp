@@ -1,0 +1,1205 @@
+scene GameScene
+		include "syndicateLibraries/Lib.BaseBlipp.blp";
+
+		 files=[game_font.ttf, fireball.png, vivident_BG_Sound.ogg, vivident_game_bg.ogg, vivident_top_atis.ogg, vivident_tebrikler.ogg, vivident_3sn_ceza.ogg,
+		 vivident_saniye_geri_sayim.ogg, vivident_24sn_geri_sayim.mp3 , vivident_button.ogg, vivident_3sn_Mola_in.ogg, vivident_icon_duduk_v2.ogg,
+		 vivident_icon_seyirci.ogg, vivident_point_5-10.ogg, vivident_point_15.ogg, redAlert.png, orangeAlert.png ];
+
+		var sW = system.screenWidth*1.003;
+		var sH = system.screenHeight*1.004;
+
+		var mW = marker.width;
+		var mH = marker.height;
+		
+		var eyePos[3];
+		var i=4;
+		var a=-1;
+		var totalScore=0;
+		var attackTime = 24;
+
+		var countdown=4;
+		var stringScore="00";
+
+		var fire;
+		var box;
+
+		var txt=0;
+
+		var deltaValue = sH/55;
+		var getDownVar=0.75;
+
+		var stringObject;
+		var ifzero=0;
+
+		var firstCntr=0;
+		var secondCntr=0;
+	
+		//==============================================================================
+		//=									ANIMATIONS								   =
+		//==============================================================================
+
+		animation Fade
+			type = fade;
+			function onEnd
+				
+			end
+		end
+
+		animation TranslateX
+			type = translate_x;
+			function onEnd
+				show(shooter);
+				hide(fire);
+				this.location=sH/2-sH/12,0,0;
+				stopSound(3);
+			end
+		end
+
+		animation TranslateZ
+			type = translate_z;
+			function onEnd
+				hide(aimCollider);
+				this.location=0,0,500;
+				stopAnimation(TranslateZ);
+			end
+		end
+
+		animation TranslateZC
+			type = scalefactor_xyz;
+		end	
+
+		animation RotateLoader
+			type = rotate_global; axis = 0,0,-1; direction = positive; start=0; end=359; time=2000; chain=RotateLoader;
+		end
+
+		animation chainFade
+			type = fade;
+			start=0;
+			stop=1;
+			chain=chainFadeout;
+			time=750;
+		end
+
+		animation chainFade
+			type = fade;
+			start=1;
+			stop=0;
+			chain=chainFade;
+			time=750;
+		end
+
+        ////	============ BASIC ANIMATIONS ============ 
+
+		animation 		Sf		type = scalefactor_xyz;	end
+		animation 		Sx		type = scalefactor_x;	end
+		animation 		Sy		type = scalefactor_y;	end
+		animation 		Sz		type = scalefactor_z;	end
+		animation 		Txyz	type = translate_xyz;	end
+		animation Tx		
+		type = translate_x;	
+			function onEnd 
+			collisionStop(objects,lineG,lineCollision); 
+			end	
+		end
+		animation 		Ty		type = translate_y;		end
+		animation 		Tz		type = translate_z;		end
+		animation 		Rx		type = rotate_global;	axis = 1,0,0;	direction = auto;	end
+		animation 		Ry		type = rotate_global;	axis = 0,1,0;	direction = auto;	end
+		animation 		Rz		type = rotate_global;	axis = 0,0,1;	direction = auto;   end
+		animation 		RLx		type = rotate_local;	axis = 1,0,0;	direction = auto;	end
+		animation 		RLy		type = rotate_local;	axis = 0,1,0;	direction = auto;	end
+		animation 		RLz		type = rotate_local;	axis = 0,0,1;	direction = auto;   end
+		animation 		Fade	type = fade;			end
+		animation 		Tex		type = texture;			end
+		animation 		Vert	type = vertex;			end
+
+		//==============================================================================
+		//=									FUNCTIONS								   =
+		//==============================================================================
+		function onCreate
+			prepareSound(vivident_BG_Sound.ogg,0, loop, 1);
+			prepareSound(vivident_game_bg.ogg, 0, loop, 2);
+			prepareSound(vivident_top_atis.ogg, 0, ,3);
+			prepareSound(vivident_tebrikler.ogg, 0, ,4);
+			prepareSound(vivident_3sn_ceza.ogg, 0, ,5);
+			prepareSound(vivident_saniye_geri_sayim.ogg, 0, ,6);
+			prepareSound(vivident_button.ogg, 0, , 7);
+
+			prepareSound(vivident_3sn_Mola_in.ogg, 0, ,8);
+			prepareSound(vivident_icon_duduk_v2.ogg, 0, ,9);
+			prepareSound(vivident_icon_seyirci.ogg, 0, , 10);
+			prepareSound(vivident_point_5-10.ogg, 0 , ,11);
+			prepareSound(vivident_point_15.ogg, 0 , ,12);
+			prepareSound(vivident_24sn_geri_sayim.mp3, 0 , ,13);
+
+			getEyePosition(screen, eyePos);
+			screenLog("eyepos is" {{eyePos[2]}});
+		end
+
+		function onShow
+			uiVisible(navBar, no);
+			uiVisible(peelCloseButton, no);
+
+			show(landingPage);
+			bindAnimation(Fade, landingPage, 0, stop=1, time=10);
+			call(showRulesPage, 2);
+
+			playSound(vivident_BG_Sound.ogg, 0, loop, 1);
+		end
+
+		function showRulesPage
+
+			show(startScreen,2000);
+			bindAnimation(Fade, startScreen, 0, stop=1, time=300);
+
+			show(instructions);
+			hide(landingPage);
+			hide(attackTimeKeeper);
+			hide(attackCounter);
+
+			animateStartButton();
+			totalScore=0;
+
+			createTexture("game_countdown.png",256,256);
+			setTexture(counter, game_countdown.png);
+
+			hide(objects);
+
+			call(createModels, 1, 10, 1);
+
+			playSound(vivident_BG_Sound.ogg, 0, loop, 1);
+		end
+
+		function animateStartButton
+			bindAnimation(TranslateZC, startScreen, 0, start=[sH*347/2048,sH*347/2048,0], stop=[sH*347/2048+50,sH*347/2048+50,0],time=250);
+			bindAnimation(TranslateZC, startScreen, 250, start=[sH*347/2048+50,sH*347/2048+50,0], stop=[sH*347/2048,sH*347/2048,0],time=250);
+			call(animateStartButton, 0.5);
+		end
+
+		function jump
+			screenLog({{jumper}});
+			bindAnimation(TranslateZC, GS_Time, 0,, delta=80,time=250);
+			bindAnimation(TranslateZC, GS_Time, 250,, delta=-80,time=250);
+			jumper++;
+		end
+
+		function hideStayVerticalPage
+			hide(stayVertical);
+			call(attackTimer,0,-1,1);
+
+			resetGyroscope();
+			call(setPos,0,-1,0);
+			getEyePosition(screen, eyePos);
+			pivot.location = [0,0,1054.474731];
+
+			set(shooter.clickable,0,yes);
+		end
+
+		function gameStart
+				collisionStart(objects,aimCollider,collisionWarning);
+				stopSound(1);
+				playSound(vivident_game_bg.ogg, , loop, 2, , , );
+
+				stopAnimation(RotateLoader);
+				stopAnimation(loader);
+
+			    hide(instructions);
+
+			    hide(startScreen);
+
+			    hide(gameOver);
+			    bindAnimation(Fade, gameOver, 0, stop=0, time=500);
+
+			    show(cross);
+			    bindAnimation(Fade, cross, 0, stop=1, time=500);
+
+			    show(lineG);
+			    bindAnimation(Fade, lineG, 0, stop=1, time=500);
+
+			    show(screenspace);
+				bindAnimation(Fade, screenspace, 0, stop=1, time=500);
+
+				resetGyroscope();
+				call(setPos,0,-1,0);
+				getEyePosition(screen, eyePos);
+				pivot.location = [0,0,1054.474731];
+
+				show(stayVertical);
+				bindAnimation(Fade, stayVertical, 0, stop=1, time=500);
+
+				show(objects);
+
+				countdown();		
+
+			    call(getDown,5);
+
+				createTexture("game_attack.png",256,256);
+				setTexture(GS_Time,game_attack.png);
+
+				createTexture("game_score.png",256,256);
+				setTexture(scoreHolder,game_score.png);
+
+				createTexture("game_level.png",256,256);
+				setTexture(levelBoard,game_level.png);
+
+				stopCall(animateStartButton);
+
+				collisionStart(objects, lineG, lineCollision);
+
+				callLevelUp();
+ 
+				totalScore=0;
+				updateScore(0);	
+
+				currentGsTimeLoc=GS_Time.location;
+		end
+
+		function resetGame
+			updateScore(0);
+			attackTime=24;
+			countdown=4;
+
+			hide(congrats);
+			hide(screenspace);
+			hide(lineG);
+			hide(levelBoard);
+
+			stopCall(updateScore);
+			stopCall(countdown);
+			stopCall(attackCountdown);
+			stopCall(attackTimer);
+			stopCall(getDown);
+			stopCall(NextSprite);
+
+			stopAnimation(Tex);
+
+			set(shooter.clickable,0,no);
+		end
+
+		function updateScore(scoreParam)
+			totalScore = totalScore + scoreParam;
+			stringScore = string(totalScore);
+			drawRect("game_score.png",[0,0,256,256],[0,0,0,0]);
+			drawText("game_score.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,75,1],stringScore);
+		end
+
+		function callLevelUp
+			call(levelUp);
+			call(callLevelUp,0.5);
+		end
+
+		function switchLevel
+			drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "   ");
+
+			hide(levelBoard);
+			hide(levelCurtain);
+			
+			attackTime=24;
+		end
+
+		var lvlTwoFlag=0;
+		var lvlThreeFlag=0;
+		var lvlFourFlag=0;
+		var lvlFiveFlag=0;
+		var lvlSixFlag=0;
+		var lvlSevenFlag=0;
+
+		function levelUp
+			switch
+				case (totalScore>299 && totalScore<311 && lvlTwoFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 2");
+
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.65;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlTwoFlag=1;
+					hide(alert);
+					
+				end
+				case (totalScore>599 && totalScore<611 && lvlThreeFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 3");
+					hide(alert);
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.55;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlThreeFlag=1;
+
+				end
+				case (totalScore>899 && totalScore<911 && lvlFourFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 4");
+					hide(alert);
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.45;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlFourFlag=1;
+				end
+				case (totalScore>1199 && totalScore<1211 && lvlFiveFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 5");
+					hide(alert);
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.35;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlFiveFlag=1;
+				end
+				case (totalScore>1499 && totalScore<1511 && lvlSixFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 6");
+					hide(alert);
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.25;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlSixFlag=1;
+				end
+				case (totalScore>1799 && totalScore<1811 && lvlSevenFlag==0)
+					call(createModels, 0, 9, 1);
+					stopSound(13);
+					drawRect("game_level.png",[0,0,256,256],[0,0,0,0]);
+					drawText("game_level.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,50,1], "SEVİYE 7");
+					hide(alert);
+					show(levelBoard);
+					show(levelCurtain);
+
+					getDownVar=0.15;
+
+					call(switchLevel, 2);
+					attackTime=24;
+					lvlSevenFlag=1;
+				end
+			end
+		end
+
+		function countdown
+			show(counter);
+			bindAnimation(Fade, counter, 0, stop=1, time=100);
+			countdown = countdown - 1;
+			var stringCountdown = string(countdown);
+			drawRect("game_countdown.png",[0,0,256,256],[0,0,0,0]);
+			drawText("game_countdown.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,85,1],stringCountdown);
+			call(countdown,1);
+			if(countdown=-1)
+				hide(counter);
+				stopCall(countdown);
+				call(hideStayVerticalPage,0);
+			end
+		end
+
+		function attackCountdown
+			countdown = countdown - 1;
+			var stringCountdown = string(countdown);
+			drawRect("game_countdown.png",[0,0,256,256],[0,0,0,0]);
+			drawText("game_countdown.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,85,1],stringCountdown);
+			if(countdown=-1)
+				hide(attackTimeKeeper);
+				hide(attackCounter);
+				attackTime=24;
+				call(showShooter, 0, 5, 0.1);
+				ifzero=0;
+				stopSound(6);	
+			end
+		end
+
+		function stopCalls
+			stopCall(animateAlertShow);
+			stopCall(animateAlertHide);
+			hide(alert);
+		end
+
+		function playVivident
+			if(ifzero==0)
+			playSound(vivident_3sn_ceza.ogg);
+			playSound(vivident_saniye_geri_sayim.ogg);
+			end
+		end
+
+		function animateAlertShow
+			bindAnimation(Fade, alert, 0, stop=1, time=750);
+			call(animateAlertHide,0.8);
+		end
+
+		function animateAlertHide
+			bindAnimation(Fade, alert, 0, stop=0, time=750);
+			call(animateAlertShow,0.8);
+		end
+
+		function attackTimer
+			attackTime = attackTime-1;
+			drawRect("game_attack.png",[0,0,256,256],[0,0,0,0]);
+
+			var attackTimesString =  string(attackTime);
+
+			switch
+				case (attackTime < 1)			
+					show(attackTimeKeeper);
+                    attackTimeKeeper.alpha = 1;
+                    hide(shooter);
+					attackTimesString = "00";
+					countdown=4;
+					setTexture(attackCounter, game_countdown.png);
+					show(attackCounter);			
+                    attackCounter.alpha = 1;   
+					call(attackCountdown,0,4,1);
+					call(hideShooter, 0, 5, 0.1);
+					call(playVivident);
+					ifzero=1;
+
+					hide(alert);
+
+				end
+
+				case (attackTime==20)
+					playSound(vivident_24sn_geri_sayim.mp3, , , 13);
+					screenLog("VEHHEEEEEEEEEE");
+				end
+				case (attackTime==10)
+					show(alert);
+					alert.imageIndex=1;
+					animateAlertShow();
+				end
+				case (attackTime==4)
+					alert.imageIndex=0;
+				end
+			end
+			drawText("game_attack.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,75,1],attackTimesString);
+		end
+		
+		class Fireball : overlay 
+		    texture = fireball.png;
+		end
+
+	    model FireballLiveTextures : Fireball
+            scaleFactor = 0,0,0;
+	    end
+
+	    function hideAimCollider
+	    	hide(aimCollider);	
+	    end
+
+	    function showAimCollider
+	    	show(aimCollider);
+	    	call(hideAimCollider, 0.01);
+	    end
+
+	    function showShooter
+	    	show(shooter);
+	    end
+
+		function shoot
+			 TELE("User tapped on screen to shoot during the game");
+			 show(aimCollider);
+			 bindAnimation(TranslateZ, aimCollider, 0, stop=-1500, time=600);
+
+			 txt=-0.125;
+			 hide(shooter);
+
+			 show(fire);
+			 bindAnimation(TranslateX, fire, 0, stop=[sH/10,0,0], time=300);
+			 call(fire.textAnim, 0, 8, 0.05);
+			 playSound(vivident_top_atis.ogg);	 
+		end
+
+		function getDown
+			adjustSound(13,0,1,1,);
+
+			bindAnimation(Tx, objects, 0, delta=deltaValue, time=100);
+			call(getDown, getDownVar);
+			collisionStart(objects, lineG, lineCollision);
+		end
+
+		function createModels
+
+			var object3;
+			create(GoodSprite, object3, location=[{{stringObject}}.location[0]-sH/6,-sH/2,-1300], alpha=1);
+			show(object3);
+
+			var del = 0.1;
+
+			call(createModels_3, del*1);
+			call(createModels_4, del*2);
+			call(createModels_5, del*3);
+			call(createModels_6, del*4);
+		end
+			
+			function createModels_3
+				var object4;
+				create(GoodSprite, object4, location=[{{stringObject}}.location[0]-sH/6,-sH/4,-1300], alpha=1);
+				show(object4);	
+			end
+
+			function createModels_4
+				var object5;
+				create(GoodSprite, object5, location=[{{stringObject}}.location[0]-sH/6,-0,-1300], alpha=1);
+				show(object5);	
+			end
+
+			function createModels_5
+				var object6;
+				create(GoodSprite, object6, location=[{{stringObject}}.location[0]-sH/6, sH/4,-1300], alpha=1);
+				show(object6);		
+			end
+
+			function createModels_6
+				var object7;
+				create(GoodSprite, object7, location=[{{stringObject}}.location[0]-sH/6, sH/2,-1300], alpha=1);
+				show(object7);	
+				stringObject= string({{object7}});
+				var objectsResult = string.substr({{stringObject}},12,20);
+				screenLog({{objectsResult}});
+				secondCntr={{objectsResult}};	
+			end
+			
+			function eraseModels
+			  for(firstCntr; firstCntr<secondCntr+1; firstCntr++)
+					delete(GoodSprite__{{firstCntr}});
+						if(firstCntr=secondCntr)
+							screenLog("you did it");
+							screenLog({{secondCntr}});
+						
+							show(playAgain, 2000);
+							bindAnimation(Fade, playAgain, 0, stop=1, time=600);
+						end
+			  end
+			  	screenLog({{firstCntr}}yeyyeee);
+			end
+
+		function setPos				
+			var gyro[3] = system.gyroscope;
+			var grav[3] = system.gravity;
+			
+		    pivot.globalRotation1 = [1,0,0,gyro[1]*360];
+		    pivot.globalRotation2 = [0,1,0,-gyro[0]*360];
+		    pivot.globalRotation3 = [0,0,1,degtorad(grav[0])];
+		end
+
+		function collisionWarning(model1, model2)
+		  set({{model1}}.DeleteThis, ,1);
+		end
+
+		function hideShooter
+			hide(shooter);
+			hide(alert);
+		end
+
+		function lineCollision(model1, model2)
+		  hide(alert);
+		  stopSound(2);
+		  stopSound(13);
+
+		  call(hideShooter, 0, 5, 0.1);
+
+		  playSound(vivident_tebrikler.ogg);
+
+		  screenLog("Collision! {{model1}} {{model2}}");
+		  stopCall(createModels);
+		  hide(shooter);
+		  collisionStop(objects,lineG,lineCollision);
+
+		  stopCall(getDown);
+		  stopCall(NextSprite);
+
+		  createTexture("score_result.png",256,256);
+		  drawRect("score_result.png",[0,0,256,256],[0,0,0,0]);
+		  drawText("score_result.png","game_font.ttf",[128,160],[255/255,153/255,23/255,0.34,85,1],stringScore);
+		  setTexture(scoreResult, "score_result.png");
+
+		  show(congrats);
+		  bindAnimation(Fade, congrats, 0, stop=1, time=300);
+
+		  stringObject=string({{dummyForStringObject}});
+
+		  stopCall(attackTimer);
+		  call(eraseModels);
+
+		  playAgain.alpha=0;
+		end
+
+		var totalSprites = 21;
+		var explosionFrames = 8;
+		var jumper=3;
+
+		function NextSprite()
+    	    if(!DeleteThis)
+    	        this.n++;
+       		    this.textureOffset = [(this.n%8)/8,0];
+       		    call(NextSprite, 1/5);  //  5 times per second
+       		else
+                var scoreBasedExplosion = scores[this.imageIndex]/5 - 1;    //  0 for 5 points, 1 for 10 points, 2 for 15 points
+                var currentScore = scores[this.imageIndex];
+                updateScore(currentScore);
+                //call(levelUp);
+                if(this.imageIndex==2 || this.imageIndex==5 || this.imageIndex==8 )
+                	stopSound(13);
+                	attackTime=24;
+                	hide(alert);
+	                if(jumper=3)
+	                	bindAnimation(TranslateZC, GS_Time, 0, ,stop=[sH/8,sH/8,1], time=10);
+	                	GS_Time.scaleFactor=sH/8,sH/8,1;
+	                	jumper=0;
+	                	stopAnimation(TranslateZC)
+	                	stopCall(jump);
+	                	call(jump, 0, 2, 0.6);
+	                end
+                elsif(this.imageIndex==7)
+                	adjustSound(13,0,0,0,);
+
+                	stopSound(1);
+                	stopSound(2);
+                	stopSound(3);
+                	stopSound(4);
+                	stopSound(5);
+                	stopSound(6);
+                	stopSound(7);
+                	stopSound(8);
+                	stopSound(9);
+                	stopSound(10);
+                	stopSound(11);
+                	stopSound(12);
+
+                	playSound(vivident_3sn_Mola_in.ogg, , ,8);
+                	stopCall(getDown);
+                	call(getDown,3);
+                	playSound(vivident_game_bg.ogg, 3000, loop, 2);
+                elsif(this.imageIndex==20)
+                	stopSound(9);
+                	playSound(vivident_icon_duduk_v2.ogg, , ,9);
+                elsif(this.imageIndex==1 || this.imageIndex==15)
+                	stopSound(10);
+                	playSound(vivident_icon_seyirci.ogg, , ,10);
+                elsif(scoreBasedExplosion==0 || scoreBasedExplosion==1)
+                	stopSound(11);
+                	stopSound(12);
+                	playSound(vivident_point_5-10.ogg, , ,11);
+                elsif(scoreBasedExplosion==2)
+                	TELE("Game-Vivident gum box object has been shot");
+                	stopSound(11);
+                	stopSound(12);
+                	playSound(vivident_point_15.ogg, , ,12);
+                end
+                this.imageIndex = totalSprites;
+                this.textureOffset = 0,0;
+                this.textureScale = 1,1;
+    			bindAnimation ( Tex, this, 0, start = totalSprites + explosionFrames*scoreBasedExplosion, stop = totalSprites + explosionFrames*(scoreBasedExplosion + 1) - 1, time = explosionFrames*1000/20);  //  5 frames per second
+    			bindAnimation ( FadeAndDelete, this, explosionFrames*1000/25, stop = 0, time = 500);		
+       		end
+    	end
+
+	    animation FadeAndDelete 
+	        type = fade;
+	        function onEnd 
+	        	stopAnimation(this);
+	            delete(this);
+
+	        end
+	    end	
+		//==============================================================================
+		//=									CLASSES								       =
+		//==============================================================================
+		class Mesh		
+			transformMode = enhanced;
+		    clickable = no;
+		    collidable = no;
+		    location = 0,0,0;
+		    scale = 0.5;
+		    texture=trans.png;
+			attachment=screen;
+			alpha=0;
+			mesh=Cube.md2;
+			hidden=yes;
+		end
+
+		class overlay		
+			mesh 				= system.plane;
+			scale				= 1;
+			alpha 				= 0;
+			type				= aura;
+			transformMode		= enhanced;
+			clickable 			= no;
+			attachment			= screen;
+			hidden				= yes;
+			//orientation = 0,0,1,0;
+			location = 0,0,0;
+		end
+
+        var scores = [  10,  //  timerSprite
+                        10, //  girlSprite
+                        10, //  24Sprite
+                        10, //  ticketSprite
+                        10,  //  handSprite
+                        10, //  24Sprite
+                        10, //  cheerLeaderSprite
+                        10, //  breakSprite
+                        10, //  24Sprite
+                        10,  //  dunkSprite
+                        10, //  shoesSprite            
+                        10, //  basketSprite
+                        10,  //	cupSprite                  
+                        10, //	dunkSprite
+                        15, //	gumSprite
+                        10,  //	maleHurraySprite
+                        10, //	onFingerBallSprite
+                        10, //	scoreboardSprite
+                        10,  //	strategySprite
+                        10, //	stripSprite
+                        10, //	whistleSprite
+                     ];
+        
+        
+        class GoodSpriteTextures : overlay  
+            textures = [ timerSprite.png, girlSprite.png, 24Sprite.png, ticketSprite.png, handSprite.png, 24Sprite.png, cheerLeaderSprite.png, breakSprite.png, 24Sprite.png, dunkSprite.png, shoesSprite.png, basketSprite.png, cupSprite.png, dunkSprite.png, gumSprite.png, maleHurraySprite.png, onFingerBallSprite.png, scoreboardSprite.png, strategySprite.png, stripSprite.png, whistleSprite.png,
+		                 Exp5_0.png, Exp5_1.png, Exp5_2.png, Exp5_3.png, Exp5_4.png, Exp5_5.png, Exp5_6.png, Exp5_7.png,
+		                 Exp10_0.png, Exp10_1.png, Exp10_2.png, Exp10_3.png, Exp10_4.png, Exp10_5.png, Exp10_6.png, Exp10_7.png,
+		                 orangeBoom1.png, orangeBoom2.png, orangeBoom3.png, orangeBoom4.png, orangeBoom5.png, orangeBoom6.png, orangeBoom7.png, orangeBoom8.png
+		               ];
+        end
+        
+		class GoodSprite : GoodSpriteTextures
+			scaleFactor=sH/7.1,sH/7.1,1;
+            blend = premult;
+		    orientation=0,0,1,90;
+		    alpha  = 0;
+		    hidden = yes;
+		    groups = objects;
+		    collidable = yes;
+		    parent = pivot;
+		    var n = -1;		
+            var DeleteThis = 0;
+           	textureScale = 1/8, 1;   // 8 columns on x and 1 row on y
+           	type=phantom;
+           	
+        	function onCreate
+                this.imageIndex = rand(totalSprites);
+                NextSprite();
+               
+            end
+        end
+
+		//==============================================================================
+		//=									MODELS								       =
+		//==============================================================================
+
+		model dummyForStringObject : overlay
+			location=sH/6,0,0;
+			function onCreate
+				stringObject=string({{this}});
+			end			
+		end
+
+		model GoodSpriteLoader : GoodSpriteTextures
+			pngsPreload = yes;
+            scaleFactor = 0,0,0;
+        end	  
+
+		model lineCollider	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,-3*sH/4,-1300;
+			scaleFactor=1,1,1;			
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider2	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,-sH/2,-1300;
+			scaleFactor=1,1,1;				
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider3	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,-sH/4,-1300;
+			scaleFactor=1,1,1;				
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider4	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,0,-1300;
+			scaleFactor=1,1,1;				
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider5	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,sH/4,-1300;
+			scaleFactor=1,1,1;			
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider6	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,sH/2,-1300;
+			scaleFactor=1,1,1;			
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model lineCollider7	: Mesh
+			mesh=Cube.md2;
+			location=sH/2+sH/3.3,3*sH/4,-1300;
+			scaleFactor=1,1,1;				
+			groups=lineG;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			alpha=1;
+			hidden=no;
+		end
+
+		model line	: overlay
+			location=sH/2,0,-1000;
+			scaleFactor=sW*2,sH/6,2000;
+			groups=lineG;
+			textureScale = 836/1024, 135/256;
+			texture = border.jpg, border-A.jpg;
+			orientation = 0,0,1,90;
+		end	
+
+		model topLine	: overlay
+			location=-sH/2+sH/7,0,-1000;
+			scaleFactor=sW*2,sH/6,2000;
+			textureScale = 836/1024, 135/256;
+			texture = border.jpg, border-A.jpg;
+			orientation = 0,0,1,90;
+			groups=lineG;
+		end	
+
+		model arViviLogo : overlay
+			location=-sH/2+sH/10,0,-1000;
+			scaleFactor=sH/6,sH/6/4,1;
+			texture = arLogoVivident.png;
+			orientation = 0,0,1,90;
+			groups=lineG;
+			blend=premult;
+		end
+
+		model alphaBackground : overlay
+			location=0,0,0;
+			scaleFactor=sW,sH,1;
+			groups=screenspace;
+			textureScale = 1024/1024, 1024/1024;
+			texture = background.png, background-A.png;
+			orientation = 0,0,1,90;
+		end	
+
+		model pivot : overlay
+			scaleFactor = 1,1,1;
+			scale=1;
+			type = aura;
+			children=line,lineCollider, lineCollider2, lineCollider3, lineCollider4, lineCollider5, lineCollider6, lineCollider7, topLine, arViviLogo;
+		end
+
+		model rules : overlay
+			scaleFactor = sH*3/4,sH,1;                                                                                                               
+			textureScale = 768/1024, 1024/1024;
+			texture = rules.jpg;
+			location=0,0,0;
+			orientation = 0,0,1,90;
+			groups=instructions;
+			alpha=1;
+		end
+
+		model startScreen : overlay
+			scaleFactor = sH*347/2048,sH*347/2048,0;                                                                                                               
+			texture = start.png;
+			clickable = yes;
+			location=sH/2-sH/8,0,0;
+			orientation = 0,0,1,90;
+	
+			function onClick
+				delete(object8);
+				delete(object7);
+				delete(object6);
+				delete(object5);
+				delete(object4);
+				delete(object3);
+				delete(object2);
+				
+				gameStart();
+				playSound(vivident_button.ogg, , , 7);
+				this.alpha=0;
+				TELE("User started the game in Fresh Shot Game scene");
+			end
+		end	
+
+		model objectHide : Mesh
+			mesh=Cube.md2;
+			location=-3*sH/6,0/sH,-900;
+			scaleFactor=sW*3,2,10;
+			groups=screenspace;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			type=hider;
+			attachment=marker;
+			parent=pivot;
+		end
+
+		model aimCollider : Mesh
+			mesh=Cube.md2;
+			location=0,0,500;
+			scaleFactor=0.01,0.01,0.01;	
+			groups=aimCollider;
+			orientation = 0,0,1,90;
+			collidable=yes;
+			texture=internal.image.white;
+			type=aura;
+		end	
+
+		model aim : overlay
+			location=0,0,0;
+			scaleFactor=sH/7.1,sH/7.1,1;
+			groups=screenspace;
+			textureScale = 265/512, 265/512;
+			texture = target.jpg, target-A.jpg;
+			orientation = 0,0,1,90;
+		end
+
+		model grid : overlay
+			location=0,0,0;
+			scaleFactor=sH,sH,1;
+			groups=screenspace;
+			textureScale = 1024/1024, 1024/1024;
+			texture = grid.png, grid-A.png;
+			orientation = 0,0,1,90;
+		end
+
+		model fire : Fireball
+	    	location = sH/2-sH/12,0,0;
+	    	alpha=1;
+	    	hidden=yes;
+	    	scaleFactor=sH/6,2*sH/6,0;
+	    	orientation=0,0,1,90;
+	    	blend=premult;
+	    	textureScale=1/8,1;
+	    	textureOffset=0,0;
+	    	 function textAnim
+	    	 	txt=txt+0.125;
+				this.textureOffset=[{{txt}},0];
+	    	 end
+
+	    end
+
+		model shooter : overlay
+			location=0,0,0;
+			scaleFactor=sW,sH,1;
+			groups=screenspace;
+			orientation = 0,0,1,90;
+			texture=trans.png;
+			clickable=no;
+				function onClick
+					shoot();
+					collisionStart(objects,aimCollider,collisionWarning);
+				end
+		end
+
+		model scoreboard : overlay
+			location=-sH/2+sH/5.3,0,0;
+			scaleFactor=sH*3/4,sH*3/8,0;
+			textureScale = 1024/1024, 512/512;
+			texture = scoreboardGame.jpg, scoreboardGame-A.png;
+			orientation=0,0,1,90;
+			groups = screenspace;
+		end
+
+		model GS_Time : overlay
+			scaleFactor=sH/8,sH/8,1;
+			texture = trans.png;
+ 			location=-sH*0.5+sH*235/2048 ,sH*0.5-sH*590/2048,0;
+ 			groups=screenspace;
+ 			orientation = 0,0,1,90;
+		end	
+
+		model scoreHolder : overlay
+			scaleFactor=sH/8,sH/8,1;
+			texture = trans.png;
+ 			location=-sH*0.5+sH*235/2048 ,-sH*0.5+sH*590/2048,0;
+ 			groups=screenspace;
+ 			orientation = 0,0,1,90;
+		end	
+
+		
+		model attackTimeKeeper : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = attacktime.jpg, attacktime-A.jpg;
+			orientation=0,0,1,90;
+		end
+
+
+		model stayVertical : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = stayVertical.jpg, stayVertical-A.jpg;
+			orientation = 0,0,1,90;	
+		end
+
+		model counter : overlay
+			scaleFactor=sH/6,sH/6,1;
+			texture = trans.png;
+ 			location=sH/4+sH/35,0,0;
+ 			orientation = 0,0,1,90;
+		end	
+
+		model attackCounter : overlay
+			scaleFactor=sH/3,sH/3,1;
+			texture = trans.png;
+ 			location=sH/4-sH/10,0,0;
+ 			orientation = 0,0,1,90;
+		end	
+
+		model gameOver : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = gameOver.jpg, gameOver-A.png;
+			orientation = 0,0,1,90;	
+			groups=congrats;
+		end
+
+		model backButton : overlay
+			location=-sH/2+sH/40, -sW/2+sW*245/1536, 0;
+			scaleFactor=sH/20,sH/20,0;
+			textureScale = 128/128, 128/128;
+			texture = backButton.jpg, backButton-A.png;
+			orientation=0,0,1,90;
+			groups = screenspace, congrats, instructions;
+			clickable=yes;
+			alpha=1;
+			function onClick
+				playSound(vivident_button.ogg, , , 7);
+			    goToScene(default);
+			    TELE("User went to the Main Scene from Fresh Shot Game");
+			end
+		end
+
+		model playAgain: overlay
+			location=sH/2-sH*314/2048,0,0;
+			scaleFactor=4*sH*362/2048,sH*362/2048,0;
+			texture=playAgain.png;	
+			orientation = 0,0,1,90;	
+			clickable=yes;
+				function onClick
+					TELE("User pushed Play Again in Fresh Shot Oyna scene");
+					stopSounds();
+					playSound(vivident_button.ogg, , , 7);
+
+					resetGame();
+				    showRulesPage();
+
+				    getDownVar=0.75;
+				    lvlTwoFlag=0;
+				    lvlThreeFlag=0;
+				    lvlFourFlag=0;
+				    lvlFiveFlag=0;
+				    lvlSixFlag=0;
+				    lvlSevenFlag=0;	
+
+				    hide(playAgain);
+
+				    delete(object8);
+				    delete(object7);
+				    delete(object6);
+				    delete(object5);
+				    delete(object4);
+				    delete(object3);
+				    delete(object2);
+
+				    bindAnimation(TranslateZC, GS_Time, 0, ,stop=[sH/8,sH/8,1], time=10);
+				end
+		end
+
+		model scoreResult : overlay
+			scaleFactor=sH/4,sH/4,1;
+			texture = trans.png;
+ 			location=sH/2-sH*820/2048,0,0;
+ 			groups=congrats;
+ 			orientation = 0,0,1,90;
+		end
+
+		model landingPage : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = landingPage.jpg;
+			orientation = 0,0,1,90;	
+		end	
+
+		model levelBoard : overlay
+			scaleFactor=sH/3,sH/3,1;
+			texture = trans.png;
+ 			location=0,0,0;
+ 			orientation = 0,0,1,90;
+ 			alpha=1;
+		end
+
+		model alert : overlay
+			location=0,0,0;
+			scaleFactor=sW, sH, 1;
+			orientation=0,0,1,90;
+			textures=[redAlert.png, orangeAlert.png, trans.png];
+			hidden=no;
+		end
+
+	end

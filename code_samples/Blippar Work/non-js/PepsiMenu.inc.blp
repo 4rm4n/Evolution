@@ -1,0 +1,1190 @@
+// File : 		PepsiMenu.inc.blp
+// Author: 		Arman Yigit
+// Project:		TR_PEPSICO_PEPSI_1606_EMOJI
+scene Menu
+	//include "scene_pepsiAnaMenu.blp"
+		files = [FunUpbeat.mp3];
+
+		var sW = system.screenWidth*1.003;
+		var sH = system.screenHeight*1.004;
+		
+		//==============================================================================
+		//=									ANIMATIONS								   =
+		//==============================================================================
+
+		////	============ BASIC ANIMATIONS ============ 
+
+		animation 		Sf		type = scalefactor_xyz;	end
+		animation 		Sx		type = scalefactor_x;	end
+		animation 		Sy		type = scalefactor_y;	end
+		animation 		Sz		type = scalefactor_z;	end
+		animation 		Txyz	type = translate_xyz;	end
+		animation 		Tx		type = translate_x;		end
+		animation 		Ty		type = translate_y;		end
+		animation 		Tz		type = translate_z;		end
+		animation 		Rx		type = rotate_global;	axis = 1,0,0;	direction = auto;	end
+		animation 		Ry		type = rotate_global;	axis = 0,1,0;	direction = auto;	end
+		animation 		Rz		type = rotate_global;	axis = 0,0,1;	direction = auto;   end
+		animation 		RLx		type = rotate_local;	axis = 1,0,0;	direction = auto;	end
+		animation 		RLy		type = rotate_local;	axis = 0,1,0;	direction = auto;	end
+		animation 		RLz		type = rotate_local;	axis = 0,0,1;	direction = auto;   end
+		animation 		Fade	type = fade;			end
+		animation 		Tex		type = texture;			end
+		animation 		Vert	type = vertex;			end
+
+		/*animation MoveAroundCenter
+			type = translate_y;
+		end*/
+
+		animation myTx
+			type= translate_x;
+				function onEnd
+					animateBottomStripe();
+				end
+		end
+
+		animation myTz
+			type= translate_z;
+				function onEnd
+					animatePepsiCan();
+				end
+		end
+
+		animation rotateShineEffect
+			type = rotate_global; 
+			axis = 0,0,-1; 
+			direction = positive; 
+			start=0; 
+			end=359; 
+			time=7500; 
+			chain=rotateShineEffect;
+		end
+
+		class TextField_Type_A : overlayP
+			var textFont = "ProximaNovaExtrabold.ttf";
+			var textEmptyRGBA = "ffffffaa";
+			var textRGBA = "ffffffff";
+			var textSize = 23;
+			var textAllign = 1;		//	0 for left, 1 for center, 3 for right
+			var textX = 127;
+			var textY = 24;
+			var fieldW = 256;
+			var fieldH = 32;
+			var fieldRGBA = "ffffff00";
+			var index = 0;
+			var useMask = 0; // 0 for not using mask image, 1 for using mask image
+			function onCreate
+				var name = "{{this}}";
+				var n = number(numtochr(name[10]));
+				if(sizeof(name)>11)
+					n = n*10 + number(numtochr(name[11]));
+				end	
+				this.index = n;
+				KeyboardUpdateField(this.index,KeyboardTextField[n]);
+			end
+			function onClick
+				KeyboardOpen(this.index);
+			end
+		end
+
+		//==============================================================================
+		//=									FUNCTIONS								   =
+		//==============================================================================
+		function onCreate
+			camera(yes);
+			prepareSound(FunUpbeat.mp3, 0, loop, 1);
+
+			if(language==3)
+				loadData(phoneNumber, "pepsiPhoneNumber1.txt", string);
+				loadData(phoneNumberChars, "pepsiPhoneNumberChars1.txt", string);
+
+				var tempVar = "{{phoneNumber[0]}}";
+				var tempVarStr = string(tempVar);
+				KeyboardTextField[0] = tempVarStr;
+				tempVar = "{{phoneNumberChars[0]}}";
+				tempVarStr = string(tempVar);
+				CharLengths[0] = tempVarStr;
+			
+			screenLog("phoneNumber:{{phoneNumber[0]}}");
+			screenLog("KeyboardTextField[0]:{{KeyboardTextField[0]}}");
+			screenLog("CharLengths[0]:{{CharLengths[0]}}");
+			end
+		end
+
+		function TELE(text)		//	TELE(text = "{{this}}");
+			telemetry("{{blipp.address}}", "{{MARKER_GROUP}} - {{text}}");
+		end
+
+		var urlPepsi = "https://digit.ro/promo/pepsi-gameready/blippar/emoji-scan";
+		var secretPepsi = "eeQu2eejoh,quozeiCee]shahshac6pieApo0aa@Kee7Poon";
+
+		function onShow
+			camera(yes);
+			preloadScene(PhotoShare);
+			preloadScene(Game);
+			uiVisible([navBar,peelCloseButton],no);
+			//language = 5; //!!! This should be obtained by region
+			set(languageSpecific.imageIndex, 0, language);
+			//languageSpecific.imageIndex = language;
+			if(isSceneChanged == 0)
+			playSound(FunUpbeat.mp3, 0, loop, 1);
+			call(animateBackStripe);
+			else
+			playSound(FunUpbeat.mp3, 0, loop, 1);
+			call(startWithoutAnimation);
+			end
+		end
+
+		function handleOpeningResult(result, message, headers, body)
+			screenLog("backendRequestFlag:{{backendRequestFlag}}");
+			if(backendRequestFlag==0)
+	            screenLog("result:{{result}}");
+	            if(result == "OK")
+					screenLog("message:{{message}}");
+					screenLog("body:{{body}}");
+					responseStatus = number(body.status);
+					responseMessage = body.message;
+					responseEmojis = number(body.emojis);
+					screenLog("status:{{responseStatus}}");
+					screenLog("message:{{responseMessage}}");
+					screenLog("emojis:{{responseEmojis}}");
+					screenLog("handleopeningresult");
+	          		if(responseStatus==1)
+	               		closePhonePage();
+	               		switch
+	               			case (responseEmojis==3)
+	               				EmojiCount.imageIndex=0;
+	               				showEmojiCount();
+	               			end
+	               			case (responseEmojis==9)
+	               				EmojiCount.imageIndex=1;
+	               				showEmojiCount();
+	               			end
+	               			case (responseEmojis==12)
+	               				EmojiCount.imageIndex=2;
+	               				showEmojiCount();
+	               			end
+	               			else
+	               				screenLog("bisikyapma");
+	               			end
+	               		end
+	               		backendRequestFlag=1;
+					else
+						showNoMatchPrompt();
+						screenLog("warningwarningwarningwarningwarningwarningwarning");
+					end
+	            else
+	                screenLog("message:{{message}}");
+	                screenLog("body:{{body}}");
+	            end
+	            
+	        else
+	        	showOnCanWarning();
+	        end
+        end
+
+		function animateBackStripe
+			show(backStripe);
+			bindAnimation(Fade, backStripe, 0, stop=1, time=10);
+			bindAnimation(myTx, backStripe, 0, stop= -sH*462/2048, time=850);
+		end
+
+		function animateBottomStripe
+			show(bottomStripe);
+			bindAnimation(Fade, bottomStripe, 0, stop=1, time=10);
+			bindAnimation(myTz, bottomStripe, 0, stop = 500, time=850);
+		end
+
+		function animatePepsiCan
+			show(can);
+			bindAnimation(Fade, can, 0, stop=1, time=250);
+
+			bindAnimation(Tz, can, 0, stop = 0, time=850);
+			bindAnimation(Tz, can, 850, stop=-100, time=250);
+			bindAnimation(Tz, can, 850+250, stop=0, time=250);
+
+			show(canBackLight);
+			bindAnimation(Fade, canBackLight, 875, stop=1, time = 200);
+			call(animateEmojiOnCan, 0.85+0.25*2);
+		end
+
+		function animateEmojiOnCan
+			show(emojiOnCan);
+			bindAnimation(Fade, emojiOnCan, 0, stop=1, time=10);
+			bindAnimation(Sf, emojiOnCan, 0, start=0, stop=[sH*568/2048, sH*568/2048, 0], time=500);
+			call(animatePepsiLogo, 0.5);
+		end
+
+		function animateEmojiOnCanBounce
+			bindAnimation(Sf, emojiOnCan, 0, delta=30, time=300);
+			bindAnimation(Sf, emojiOnCan, 300, delta=-30, time=300);
+			bindAnimation(Sf, emojiOnCan, 600, delta=30, time=300);
+			bindAnimation(Sf, emojiOnCan, 900, delta=-30, time=300);
+		end
+
+		function animatePepsiLogo
+			show(pepsiLogo);
+			bindAnimation(Fade, pepsiLogo, 0, stop=1, time=10);
+			bindAnimation(Tx, pepsiLogo, 0, stop= -sH*312/2048, time=250);
+			call(animateShineEffect, 0.25);
+		end
+
+		function animateShineEffect
+			show(shineEffect);
+			bindAnimation(Fade, shineEffect, 0, stop=1, time=10);
+			bindAnimation(Sf, shineEffect, 0, start=0, stop=[sH*673/2048,sH*673/2048,0], time=500);
+			bindAnimation(rotateShineEffect, shineEffect);
+			call(animateLittleMojis, 0.5)
+		end
+
+		function animateLittleMojis
+			show(exportMojis);
+			bindAnimation(Fade, exportMojis, 0, stop=1, time=10);
+			call(animateTitle);
+
+			bindAnimation(Txyz, tastyBody, 0, stop=[-sH*(483+30)/2048,-sH*(370+30)/2048,0],   time=200 );
+			bindAnimation(Txyz, partyBody, 200, stop=[-sH*(279+30)/2048,-sH*(434+30)/2048,0], time=200 );
+			bindAnimation(Txyz, laughBody, 300, stop=[-sH*(11+30)/2048, sH*-(370+30)/2048,0], time=200 );
+			bindAnimation(Txyz, classyBody, 400, stop=[-sH*(483+30)/2048,sH*(370+30)/2048,0], time=200 );
+			bindAnimation(Txyz, diverBody, 500, stop=[-sH*(279+30)/2048, sH*(434+30)/2048,0], time=200 );
+			bindAnimation(Txyz, loveBody, 600, stop=[-sH*(13+30)/2048, sH*(370+30)/2048,0],   time=200 );
+		end
+
+		function animateTitle
+			show(title);
+			bindAnimation(Fade, title, 0, stop=1, time=10);
+			bindAnimation(Sf, title, 0, stop=[sH*649/2048, sH*649/2048, 0], time=750);
+			bindAnimation(Tx, title, 0, stop=-sH*722/2048 , time=750);
+			call(animateButtons, 1);
+			call(animateTitleBounce, 1, -1, 2);
+		end
+
+		function animateButtons
+			if(language == 0 || language == 4 || language == 5)
+				optionalButton.imageIndex = 7;
+				optionalButton.scaleFactor = 0, 0, 0;
+			end
+
+			show(buttons);
+			bindAnimation(Fade, buttons, 0, stop=1, time=10);
+
+			bindAnimation(Ty, psButton, 0, stop = -sH*297/2048, time=300);
+			bindAnimation(Ty, gameButton, 300, stop = sH*301/2048, time=300);
+			bindAnimation(Tx, optionalButton, 600, stop = sH*807/2048, time=300);
+
+			bindAnimation(Fade, buttons, 1000, stop=0, time=300)
+			call(changeButtonAssets, 1.3);
+			bindAnimation(Fade, buttons, 1500, stop=1, time=300);
+		end
+
+		function animateTitleBounce
+			bindAnimation(Sf, title, 0, delta=25, time=1000);
+			bindAnimation(Sf, title, 1000, delta=-25, time=1000);
+		end
+
+		function changeButtonAssets
+			psButton.imageIndex=language;
+			gameButton.imageIndex=language;
+			optionalButton.imageIndex=language; 
+			call(animatePsButtonBounce, 0.5);
+
+			show(languageGroup, 450);
+			bindAnimation(Fade, languageGroup, 450, stop = 1, time = 300);
+			//call(animateOptionalButtonBounce, 0.8);
+			call(animateEmojiOnCanBounce, 3, -1, 4);
+			resetGyroscope();	
+			call(gyroStart,0,-1,0);
+			call(resetGyroscope,0,-1,5);
+			if(language == 3)
+				if(sizeof(phoneNumber[0])>0)
+					var hmacString = string.hmac(secretPepsi,phoneNumber[0]);
+					var query = "{{urlPepsi}}/phone/{{phoneNumber[0]}}/hash/{{hmacString}}";
+					httpGet(query, , handleOpeningResult);
+				else
+					showHowTo();
+				end
+			end
+		end
+
+		function animatePsButtonBounce
+			bindAnimation(Tx, psButton, 0, delta=-25, time=300);
+			bindAnimation(Tx, psButton, 300, delta=25, time=150);
+			call(animateGameButtonBounce, 0.45);
+			call(animateOptionalButtonBounce, 0.25);
+		end
+
+		//var hasThirdButton = [0,0,0,0,0,0,1];
+		function animateOptionalButtonBounce
+			bindAnimation(Tx, optionalButton, 0, delta=-25, time=300);
+			bindAnimation(Tx, optionalButton, 300, delta=25, time=150);
+		end
+
+		function animateGameButtonBounce
+			//var deltas = [25,50];
+			/*bindAnimation(Tx, gameButton, 0, delta=-deltas[hasThirdButton[language]], time=300);
+			bindAnimation(Tx, gameButton, 300, delta=deltas[hasThirdButton[language]], time=150);*/
+			bindAnimation(Tx, gameButton, 0, delta=-25, time=300);
+			bindAnimation(Tx, gameButton, 300, delta=25, time=150);
+			call(animatePsButtonBounce, 0.45);
+		end
+
+		function showHowTo
+			setClickable(buttons, no);
+			show(HowToGroup);
+			bindAnimation(Fade, HowToGroup, 0, stop = 1, time=500);
+		end
+
+		function closeHowTo
+			setClickable(buttons, yes);
+			hide(HowToGroup, 500);
+			bindAnimation(Fade, HowToGroup, 0, stop = 0, time=500);
+		end
+
+		function showPhonePage
+			setClickable(ScreenSpaceKeyboard_Fields_Sensors, yes);
+			setClickable(buttons, no);
+			show(PhonePageGroup);
+			bindAnimation(Fade, PhonePageGroup, 0, stop = 1, time=500);
+		end
+
+		function closePhonePage
+			setClickable(buttons, yes);
+			setClickable(TextField_0, yes);
+			setClickable(PhoneSaveButton, yes);
+			hide(PhonePageGroup, 500);
+			bindAnimation(Fade, PhonePageGroup, 0, stop = 0, time=500);
+		end
+
+		function showWarningPrompt
+			setClickable(buttons, no);
+			setClickable(TextField_0, no);
+			setClickable(PhoneSaveButton, no);
+			show(WarningPrompt);
+			bindAnimation(Fade, WarningPrompt, 0, stop = 1, time=500);
+		end
+
+		function showNoMatchPrompt
+			setClickable(buttons, no);
+			show(NoMatchPrompt);
+			bindAnimation(Fade, NoMatchPrompt, 0, stop = 1, time=500);
+		end
+
+		function showOnCanWarning
+			setClickable(buttons, no);
+			setClickable(TextField_0, no);
+			setClickable(PhoneSaveButton, no);
+
+			show(haveToBlippOnCanPrompt);
+			bindAnimation(Fade, haveToBlippOnCanPrompt, 0, stop = 1, time=500);
+		end
+
+		function showEmojiCount
+			setClickable(buttons, no);
+			show(EmojiCountGroup);
+			bindAnimation(Fade, EmojiCountGroup, 0, stop = 1, time=500);
+		end
+
+		var responseStatus;
+		var responseMessage;
+		var responseEmojis;
+		function AfterClose
+        	screenLog("backendRequestFlag:{{backendRequestFlag}}");
+			if(backendRequestFlag==0)
+				screenLog("EUREKA!");
+				var hmacString = string.hmac(secretPepsi,phoneNumber[0]);
+				var query = "{{urlPepsi}}/phone/{{phoneNumber[0]}}/hash/{{hmacString}}";
+				httpGet(query, , handleResult);
+			else
+	        	showOnCanWarning();
+	        end
+    	end
+
+		function handleResult(result, message, headers, body)
+	            screenLog("result:{{result}}");
+	            if(result == "OK")
+					screenLog("message:{{message}}");
+					screenLog("body:{{body}}");
+					responseStatus = number(body.status);
+					responseMessage = body.message;
+					responseEmojis = number(body.emojis);
+					screenLog("status:{{responseStatus}}");
+					screenLog("message:{{responseMessage}}");
+					screenLog("emojis:{{responseEmojis}}");
+					screenLog("handleresult");
+	               if(responseStatus==1)
+	               		setClickable(buttons, no);
+						setClickable(TextField_0, no);
+						setClickable(PhoneSaveButton, no);
+	               		show(Congrats);
+	               		bindAnimation(Fade, Congrats, 0, stop=1, time=500);
+
+	               		closePhonePage();
+	               		backendRequestFlag=1;
+	               else
+	               		showWarningPrompt();
+	               		screenLog("warningwarningwarningwarningwarningwarningwarning");
+	               end
+
+	            else
+	                screenLog("message:{{message}}");
+	                screenLog("body:{{body}}");
+	            end
+	            
+	        
+        end
+
+		function resetGyroscope
+			resetGyroscope();
+		end
+
+		function gyroStart			
+
+			var gyro[3] = system.gyroscope;
+			
+		    tastyBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    tastyBody.localRotation1 = [0,1,0,-gyro[1]*360];
+
+		    classyBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    classyBody.localRotation1 = [0,1,0,-gyro[1]*360];
+
+		    loveBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    loveBody.localRotation1 = [0,1,0,-gyro[1]*360];
+
+		    laughBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    laughBody.localRotation1 = [0,1,0,-gyro[1]*360];
+
+		    partyBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    partyBody.localRotation1 = [0,1,0,-gyro[1]*360];
+
+		    diverBody.localRotation0 = [1,0,0,-gyro[0]*360];
+		    diverBody.localRotation1 = [0,1,0,-gyro[1]*360];
+		end
+
+		function startWithoutAnimation
+			if(language == 0 || language == 4 || language == 5)
+				optionalButton.imageIndex = 7;
+				optionalButton.scaleFactor = 0, 0, 0;
+			end
+
+			backStripe.location = -sH*462/2048, 0, 0;
+			bottomStripe.location = sH*257/2048, 0, 500;
+			can.location = sH*341/2048, -sH*10/2048, 0;
+
+			emojiOnCan.scaleFactor = sH*568/2048, sH*568/2048, 0;
+			pepsiLogo.location = -sH*312/2048, 0, 0;
+			shineEffect.scaleFactor = sH*673/2048,sH*673/2048,0;
+			bindAnimation(rotateShineEffect, shineEffect);
+
+			title.location = -sH*722/2048, 0, 0;
+			title.scaleFactor = sH*649/2048, sH*649/2048, 0;
+			call(animateTitleBounce, 1, -1, 2);
+
+			tastyBody.location = -sH*(483+30)/2048,-sH*(370+30)/2048,0;
+			partyBody.location = -sH*(279+30)/2048,-sH*(434+30)/2048,0;
+			laughBody.location = -sH*(11+30)/2048, sH*-(370+30)/2048,0;
+			classyBody.location = -sH*(483+30)/2048,sH*(370+30)/2048,0;
+			diverBody.location = -sH*(279+30)/2048, sH*(434+30)/2048,0;
+			loveBody.location = -sH*(13+30)/2048, sH*(370+30)/2048,0;
+
+			psButton.location = sH*578/2048, -sH*297/2048, 1;
+			gameButton.location = sH*578/2048, sH*301/2048, 1;
+			optionalButton.location = sH*807/2048, 0, 1;
+
+			psButton.imageIndex=language;
+			gameButton.imageIndex=language;
+			optionalButton.imageIndex=language; 
+
+			show(languageGroup, 450);
+			bindAnimation(Fade, languageGroup, 450, stop = 1, time = 300);
+
+			resetGyroscope();	
+			call(gyroStart,0,-1,0);
+			call(resetGyroscope,0,-1,5);
+			call(animateEmojiOnCanBounce, 3, -1, 4);
+			call(animatePsButtonBounce, 0.5);
+
+			show(noAnimation);
+			bindAnimation(Fade, noAnimation, 0, stop = 1, time = 20);
+		end
+		//==============================================================================
+		//=									CLASSES								       =
+		//==============================================================================
+
+		class overlayMe        
+            mesh                  = system.plane;
+            scale                 = 1;
+            alpha                 = 0;                       
+            type                  = aura;
+            transformMode         = enhanced;
+            clickable             = no;    
+            attachment            = screen;
+            hidden                = yes;
+            location = 0,0,0;
+            orientation = 0,0,1,90;
+        end
+
+		class Mesh
+		   transformMode = enhanced;
+		   clickable = no;
+		   collidable = no;
+		   location = 0,0,0;
+		   scale = 1;
+		   texture = internal.image.white;
+		   textureEdges = hWrap, vWrap;
+		   attachment= screen;
+		   alpha=0;
+		end
+
+		material Default
+		   type = matt;
+		end
+		//==============================================================================
+		//=									MODELS								       =
+		//==============================================================================
+
+		model backStripe : overlayMe
+			scaleFactor = sH*1437/2048/2.4, sH*1437/2048, 0;
+			location = -sH, 0, 0;
+			textureScale = 512/512, 1024/1024;
+			texture = backStripe.png, backStripe-A.png;
+			groups = animated, noAnimation;
+			type = hider;
+		end
+
+		model bottomStripe : overlayMe
+			scaleFactor = sH*1437/2048/2.4, sH*4000/2048,  0;
+			location = sH*257/2048, 0, -1.5*sH*1437/2048;
+			texture = backStripe.png, backStripe-A.png;
+			localRotation0=[1,0,0,-90];
+			groups = animated,noAnimation;
+			type = phantom;
+		end
+
+		model tastyEmojiPivot : overlayMe
+			location = -sH*483/2048,-sH*360/2048,0;
+			orientation = 0,0,1,0;
+		end
+
+		model shineEffect : overlayMe
+			scaleFactor=0,0,0;
+			location = -sH*324/2048, 0, 0;
+			textureScale = 512/512, 512/512;
+			texture = shineEffect.png, shineEffect-A.png;
+			groups = others,noAnimation;
+		end
+
+		model title : overlayMe
+			scaleFactor=0,0,0;
+			location = -sH*312/2048, 0, 0;
+			textures = [[title_0.jpg, title_0-A.png], [title_0.jpg, title_0-A.png], [title_2.jpg, title_2-A.png], [title_3.jpg, title_3-A.png], [title_4.jpg, title_4-A.png], [title_5.jpg, title_5-A.png]];
+			textureScale = 512/512, 512/512;
+			groups = others, languageSpecific,noAnimation;
+		end
+
+		//==============EXPORT==============start
+
+		model classyBody : Mesh
+		   mesh = classyBody.md2;
+		   material = Default;
+		   children =  classyRing, classyFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   orientation= 0,0,1,90;
+		   groups=exportMojis,noAnimation;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model classyRing : Mesh
+		   mesh = classyRing.md2;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+
+		model classyFace : Mesh
+		   mesh = classyFace.md2;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = classyFaceTex.png, classyFaceTex-A.png;
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+
+		model diverBody : Mesh
+		   mesh = diverBody.md2;
+		   material = Default;
+		   children = diverRing, diverFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   groups=exportMojis,noAnimation;
+		   orientation= 0,0,1,90;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model diverRing : Mesh
+		   mesh = diverRing.md2;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+
+		model diverFace : Mesh
+		   mesh = diverFace.md2;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = diverFaceTex.png, diverFaceTex-A.png;
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+
+		model laughBody : Mesh
+		   mesh = laughBody.md2;
+		   material = Default;
+		   children =  laughRing, laughFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   groups=exportMojis,noAnimation;
+		   orientation= 0,0,1,90;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model laughRing : Mesh
+		   mesh = laughRing.md2;
+		   scaleFactor = 1.000000, 1.000000, 1.000000;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+
+		model laughFace : Mesh
+		   mesh = laughFace.md2;
+		   scaleFactor = 1.000000, 1.000000, 1.000000;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = laughFaceTex.png, laughFaceTex-A.png;
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+
+		model loveBody : Mesh
+		   mesh = loveBody.md2;
+		   material = Default;
+		   children = loveRing, loveFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   groups=exportMojis,noAnimation;
+		   orientation= 0,0,1,90;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model loveRing : Mesh
+		   mesh = loveRing.md2;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+
+		model loveFace : Mesh
+		   mesh = loveFace.md2;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = loveFaceTex.jpg, loveFaceTex-A.png;
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+
+		model partyBody : Mesh
+		   mesh = partyBody.md2;
+		   material = Default;
+		   children = partyRing, partyFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   groups=exportMojis,noAnimation;
+		   orientation= 0,0,1,90;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model partyRing : Mesh
+		   mesh = partyRing.md2;
+		   scaleFactor = 1.000000, 1.000000, 1.000000;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+		  
+		model partyFace : Mesh
+		   mesh = partyFace.md2;
+		   scaleFactor = 1.000000, 1.000000, 1.000000;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = partyFaceTex.png, partyFaceTex-A.png;	
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+
+		model tastyBody : Mesh
+		   mesh = tastyBody.md2;
+		   material = Default;
+		   children = tastyRing, tastyFace;
+		   textureScale = 2048/2048, 2048/2048;
+		   texture = emojiBackground.jpg, emojiBackground-A.png;
+		   groups=exportMojis,noAnimation;
+		   orientation= 0,0,1,90;
+		   location=-sH*330/2048,0,0;
+		   scaleFactor=sH*0.7/2048,sH*0.7/2048,sH*0.7/2048;
+		end
+
+		model tastyRing : Mesh
+		   mesh = tastyRing.md2;
+		   material = Default;
+		   texture = whiteTex.png;
+		   groups=exportMojis,noAnimation;
+		end
+
+		model tastyFace : Mesh
+		   mesh = tastyFace.md2;
+		   material = Default;
+		   textureScale = 256/256, 256/256;
+		   texture = tastyFaceTex.png, tastyFaceTex-A.png;
+		   type=aura;
+		   groups=exportMojis,noAnimation;
+		   blend=premult;
+		end
+		//==============EXPORT==============end
+
+		model pepsiLogo : overlayMe
+			scaleFactor=sH*258/2048,sH*258/2048,0;
+			location = 0, 0, 0;
+			textureScale = 256/256, 256/256;
+			texture = pepsiLogo.png, pepsiLogo-A.png;
+			groups = others,noAnimation;
+		end
+
+		model canBackLight : overlayMe
+			scaleFactor=sH*966/2048,sH*966/2048,0;
+			location = sH*325/2048, 0, 0;
+			textureScale = 1024/1024, 1024/1024;
+			texture = canBackLight.png, canBackLight-A.jpg;
+			groups = others,noAnimation;
+			blend = add;
+		end
+
+		model can : overlayMe
+			scaleFactor= sH*1293/2048/2, sH*1293/2048, 0;
+			location = sH*341/2048, -sH*10/2048, -3000;
+			textureScale = 512/512, 1024/1024;
+			texture = can.jpg, can-A.jpg;
+			groups = others,noAnimation;
+		end
+
+		var indexVar=0;
+
+		model emojiOnCan : overlayMe
+			scaleFactor=0,0,0;
+			location = sH*279/2048, -sH*10/2048, 0;
+			textures = [[flowerOnCan.jpg, flowerOnCan-A.jpg], [classyOnCan.jpg, classyOnCan-A.jpg], [diverOnCan.jpg, diverOnCan-A.jpg], [exitedOnCan.jpg, exitedOnCan-A.jpg], [laughOnCan.jpg, laughOnCan-A.jpg], [loveOnCan.jpg, loveOnCan-A.jpg], [musicOnCan.jpg, musicOnCan-A.jpg], [partyOnCan.jpg, partyOnCan-A.jpg], [tastyOnCan.jpg, tastyOnCan-A.jpg]];
+			textureScale = 512/512, 511/512;
+			groups = others,noAnimation, buttons;
+			imageIndex = 0;
+			clickable=yes;
+			pngsPreload=yes;
+				function onClick
+				    if(emojiOnCan.imageIndex!=8)
+				    	indexVar++;
+				    	this.imageIndex=indexVar;
+				    else
+				    	indexVar=0;
+				    	this.imageIndex=0;
+				    end
+				end
+		end
+
+		model languageSettingsBar : overlayMe
+			scaleFactor=sH*585/2048,sH*585/2048/4,0;
+			location = sH*904/2048, -sW/2-sH*585/2048/4, 0;
+			textureScale = 512/512, 128/128;
+			texture = languageSettingsBar.jpg, languageSettingsBar-A.png;
+			groups = languageGroup;
+			function onCreate
+				if(initialLanguage==0)
+					this.scaleFactor = 0, 0, 0;
+				end
+			end
+		end
+			var isBarOut = 0;
+			model languageSettingsWheel : overlayMe
+				scaleFactor=0.60,0.60/4,0;
+				location = 0.4, 0, 1;
+				textureScale = 64/64, 64/64;
+				texture = languageSettingsWheel.jpg, languageSettingsWheel-A.png;
+				parent = languageSettingsBar;
+				clickable = yes;
+				groups = languageGroup, buttons;
+				function onClick
+					if(isBarOut==0)
+					isBarOut=1;
+				    bindAnimation(Ty, languageSettingsBar, 0, stop = -sW/2+sH*585/2048/4, time=200);
+				    else
+				    isBarOut=0;
+				    bindAnimation(Ty, languageSettingsBar, 0, stop = -sW/2-sH*585/2048/4, time=200);
+				    end
+				    TELE("Main Menu Scene - Language Settings Button is pressed");
+				end
+			end
+
+			model englishLanguageOption : overlayMe
+				scaleFactor=0.60,0.60/4,0;
+				location = -0.1, 0, 1;
+				texture = englishFlag.png, flags-A.png;
+				parent = languageSettingsBar;
+				groups = languageGroup;
+				clickable = yes;
+				function onClick
+				    psButton.imageIndex = 0;
+				    gameButton.imageIndex = 0;
+				    title.imageIndex = 0;
+				    optionalButton.scaleFactor = 0,0,0;
+				    language = 0;
+				    TELE("Main Menu Scene - English Language Button is pressed");
+				end
+			end
+
+			var languageHasTranslations = [0,1,1,1,0,0];
+	 		var inc=0;
+
+			model otherLanguageOption : overlayMe
+				scaleFactor=0.60/4,0.60,0;
+				location = 0.15, 0, 1;
+				textures = [trans.png, [greeceFlag.png, flags-A.png], [hungaryFlag.png, flags-A.png], [romaniaFlag.png, flags-A.png], [turkeyFlag.png, flags-A.png], [ukraineFlag.png, flags-A.png]];
+				textureScale = 64/64, 64/64;
+				parent = languageSettingsBar;
+				imageIndex = initialLanguage;
+				clickable=yes;
+				localRotation2=0,0,1,-90;
+				groups = languageGroup;
+				function onClick
+					var n = this.imageIndex;
+					language = n;
+					psButton.imageIndex = n;
+				    gameButton.imageIndex = n;
+				    title.imageIndex = n;
+				    optionalButton.scaleFactor = languageHasTranslations[n]*sH*441/2048, languageHasTranslations[n]*sH*441/2048, 0;
+				    TELE("Main Menu Scene - Other Language Button is pressed");
+				end
+			end
+
+		model psButton : overlayMe
+			scaleFactor=sH*441/2048,sH*441/2048,0;
+			location = sH*578/2048, -sH/2, 1;
+			textures = [[psButton_0.png, buttons-A.jpg], [psButton_1.png, buttons-A.jpg], [psButton_2.png, buttons-A.jpg], [psButton_3.png, buttons-A.jpg], [psButton_4.png, buttons-A.jpg], [psButton_5.png, buttons-A.jpg], [tastyEmojiButton.jpg, buttons-A.jpg]];
+			groups = buttons,noAnimation;
+			imageIndex = 6;
+			clickable = yes;
+			function onClick
+				stopSound(1,0);
+			    goToScene(PhotoShare);
+			    TELE("Main Menu Scene - Jumps to Photo Share Scene Button is pressed");
+			end
+		end
+
+		model gameButton : overlayMe
+			scaleFactor=sH*441/2048,sH*441/2048,0;
+			location = sH*578/2048, sH/2, 1;
+			textures = [[gameButton_0.png, buttons-A.jpg] ,[gameButton_0.png, buttons-A.jpg] ,[gameButton_2.png, buttons-A.jpg] ,[gameButton_3.png, buttons-A.jpg] ,[gameButton_4.png, buttons-A.jpg] , [gameButton_5.png, buttons-A.jpg], [classyEmojiButton.jpg, classyEmojiButton-A.png]];
+			textureScale = 512/512, 512/512;
+			groups = buttons,noAnimation;
+			imageIndex = 6;
+			clickable = yes;
+			function onClick
+				stopSound(1,0);
+			    goToScene(Game);
+			    TELE("Main Menu Scene - Jumps to Game Scene Button is pressed");
+			end
+		end
+
+		model optionalButton : overlayMe
+			scaleFactor=sH*441/2048,sH*441/2048,0;
+			location = sH, 0, 1;
+			textures = [trans.png ,[optionalButton_1.png, buttons-A.jpg] ,[optionalButton_2.png, buttons-A.jpg] ,[optionalButton_3.png, buttons-A.jpg] ,trans.png, [optionalButton_5.png, buttons-A.jpg], [loveEmojiButton.jpg, buttons-A.jpg], trans.png];
+			groups = buttons,noAnimation;
+			imageIndex = 6;
+			clickable = yes;
+			textureScale = 512/512, 512/512;
+			function onClick
+				stopSound(1,0);
+				TELE("Main Menu Scene - Optional Button is pressed");
+			    switch
+			    	case (language == 0)
+			    		screenLog("This is English, NO ACTION");
+			    	end
+			    	case (language == 1)
+			    		//goToLink("http://cust-solution.blippar.com/pepsi-hellas/index.html?uid=DEVICE_ID", , , );
+			    		setHTMLAspect(device);
+				    	overlayHTML("http://cust-solution.blippar.com/pepsi-hellas/index.html?uid=DEVICE_ID", closeButton, ,);
+			    	end
+			    	case (language == 2)
+			    		goToLink("http://www.pepsi.hu/", , , );
+			    	end
+			    	case (language == 3)
+			    		showPhonePage();
+			    	end
+			    	case (language == 4)
+			    		screenLog("This is Turkish, NO ACTION");
+			    	end
+			    	case (language == 5)
+			    		screenLog("Ukranian");
+			    	end
+			    end
+			end
+		end
+
+		model MM_Close : overlayMe
+		scaleFactor = sH*128/2048, sH*128/2048, 0;
+		align = top,right;
+		location = -(sH/2-sH*64/2048), sW/2-sH*64/2048, 0;
+		textureScale = 128/128, 128/128;
+		texture = PSP_Close.jpg, PSP_Close-A.png;
+		groups = noAnimation, buttons;
+		clickable = yes;
+			function onClick
+				close();
+				TELE("Main Menu Scene - Close Button is pressed");
+			end
+		end
+
+		model MM_HowTo : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 0;
+		texture = MM_HowTo.png;
+		groups = HowToGroup;
+		end
+
+		model MM_HowToClose : overlayMe
+		scaleFactor = sH*69/2048, sH*69/2048, 0;
+		location = -sH*788/2048, sH*468/2048, 1;
+		texture = MM_HowToCloseButton.png;
+		groups = HowToGroup;
+		clickable = yes;
+			function onClick
+				closeHowTo();
+			end
+		end
+
+		model PhonePage : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 0;
+		texture = PhonePage.png;
+		groups = PhonePageGroup;
+		end
+
+		var phoneNumber[1] = [""];
+		var phoneNumberChars[1] = [""];
+		var isTextBoxFilled == 1;
+		model PhoneSaveButton : overlayMe
+		scaleFactor = sH*565/2048, sH*565/2048/4, 0;
+		location = sH*556/2048, 0, 5;
+		texture = Phone_SaveButton.png;
+		groups = PhonePageGroup,PhonePageGroup_Sensors;
+		clickable = yes;
+			function onClick
+				if (sizeof(KeyboardTextField[0]) == 0)
+    				screenLog("VALIDATION should be done here");
+    				screenLog(“Text Field should not be blank");
+    				show(regExpBlankFieldPrompt);
+    				bindAnimation(Fade, regExpBlankFieldPrompt, 0, stop=1, time=500);
+    				setClickable(buttons, no);
+					setClickable(TextField_0, no);
+					setClickable(PhoneSaveButton, no);
+					setClickable(Phone_CloseButton, no);
+				else
+				    var tempPhoneNumber = KeyboardTextField[0];
+				    screenLog("tempPhoneNumber{{tempPhoneNumber}}");
+				    var phoneVal = regexp.split(tempPhoneNumber, "^0?[237]\d{8}$");
+				    for(var i=0;i<sizeof(phoneVal);i++)
+						screenLog("phoneVal[{{i}}]=        {{phoneVal[i]}}");
+					end
+					if(phoneVal[0] == "")
+						screenLog("PHONE IS OK");
+					end
+					
+					if (phoneVal[0] != "")
+					    screenLog("Please enter a valid phone number");
+					    show(regExpValidNoPrompt);
+    					bindAnimation(Fade, regExpValidNoPrompt, 0, stop=1, time=500);
+    					setClickable(buttons, no);
+						setClickable(TextField_0, no);
+						setClickable(PhoneSaveButton, no);
+						setClickable(Phone_CloseButton, no);
+						//call(MESSAGE_OPEN,0,t="Please enter|a valid|name and number|in the entry fields!",tc="FFFFFF",tf="HelveticaNeue-Light.ttf",bgc="000000",bgo=0.5,wc="00C5FE",wo=1,bc="0066B3",bo=1,bt="OK",btc="FFFFFF");
+					else
+					    screenLog(“Phone number is valid");
+					    if(isTextBoxFilled == 1)
+        			    	phoneNumber[0] = KeyboardTextField[0];
+        					goToLink("http://www.pepsi.ro/summermoments/promo", , , AfterClose);
+        				end
+					end
+				end
+			end
+		end
+
+		model Phone_CloseButton : overlayMe
+		scaleFactor = sH*69/2048, sH*69/2048, 0;
+		location = -sH*788/2048, sH*468/2048, 1;
+		texture = MM_HowToCloseButton.png;
+		groups = PhonePageGroup,PhonePageGroup_Sensors;
+		clickable = yes;
+			function onClick
+				closePhonePage();
+			end
+		end
+
+		model TextField_0 : TextField_Type_A
+			location = sH*78/2048, 0, 0;
+			scaleFactor = sH*600/2048,sH*75/2048,0;
+			type = phantom;
+			var name = "*NUMĂR DE TELEFON";
+			var defaultText = "*NUMĂR DE TELEFON";
+			var keyboardLayout = 1;
+			var charLimit = 10;
+			var context = 1;
+			groups = ScreenSpaceKeyboard_Fields, ScreenSpaceKeyboard_Fields_Sensors, PhonePageGroup;
+			function onClick
+				KeyboardOpen(this.index);
+			end
+		end
+
+		model WarningPrompt : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 1;
+		texture = warningPrompt.png;
+		clickable = yes;
+			function onClick
+				hide(this);
+				setClickable(buttons, yes);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+			end
+		end
+
+		model haveToBlippOnCanPrompt : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 1;
+		texture = haveToBlippOnCanPrompt.png;
+		clickable = yes;
+			function onClick
+				hide(this);
+				setClickable(buttons, yes);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+			end
+		end
+
+		model regExpBlankFieldPrompt : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 1;
+		texture = regExpBlankFieldPrompt.png;
+		clickable = yes;
+			function onClick
+				hide(this);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+				setClickable(Phone_CloseButton, yes);
+			end
+		end
+
+		model regExpValidNoPrompt : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 1;
+		texture = regExpValidNoPrompt.png;
+		clickable = yes;
+			function onClick
+				hide(this);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+				setClickable(Phone_CloseButton, yes);
+			end
+		end
+
+		model NoMatchPrompt : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 1;
+		texture = NoMatchPrompt.png;
+		clickable = yes;
+			function onClick
+				hide(this);
+				setClickable(buttons, yes);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+			end
+		end
+
+		model EmojiCount : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 0;
+		clickable = yes;
+		textures = [emojisCount3.png, emojisCount9.png, emojisCount12.png];
+		groups = EmojiCountGroup;
+		end
+
+		model Congrats : overlayMe
+		scaleFactor = sH, sH, 0;
+		location = 0, 0, 0;
+		clickable = yes;
+		texture = congrats.png;
+			function onClick
+				hide(this);    
+				setClickable(buttons, yes);
+				setClickable(TextField_0, yes);
+				setClickable(PhoneSaveButton, yes);
+			end
+		end
+
+		model EmojiCount_CloseButton : overlayMe
+		scaleFactor = sH*69/2048, sH*69/2048, 0;
+		location = -sH*788/2048, sH*468/2048, 2;
+		texture = MM_HowToCloseButton.png;
+		groups = EmojiCountGroup, EmojiCountGroup_Sensors;
+		clickable = yes;
+			function onClick
+				hide(EmojiCountGroup);
+				setClickable(buttons, yes);
+			end
+		end
+
+		function KeyboardPostClose
+		//	Extra functions:
+		setClickable(PhonePageGroup_Sensors, yes);
+		setClickable(WarningPrompt, yes);
+		setClickable(Congrats, yes);
+		setClickable(haveToBlippOnCanPrompt, yes);
+		setClickable(regExpBlankFieldPrompt, yes);
+		setClickable(regExpValidNoPrompt, yes);
+			switch
+				case (KeyboardContext==1)
+					phoneNumber[0] = KeyboardTextField[0];
+					phoneNumberChars[0] = CharLengths[0];
+					saveData(phoneNumber, pepsiPhoneNumber1.txt, string);
+					saveData(phoneNumberChars, pepsiPhoneNumberChars1.txt, string);
+					set(ScreenSpaceKeyboard_Fields_Sensors.clickable, 0, yes);
+					screenLog("==========================================");
+		            screenLog("NUMBER FIELD IS UPDATED");
+		            screenLog("{{KeyboardTextField[0]}}");
+					screenLog("==========================================");
+				end
+			end
+		end
+
+		include "syndicateLibraries/ScreenSpaceKeyboard.blp"
+		include "syndicateLibraries/Lib.BaseBlipp.blp"
+		//scalefactor = width, height, depth;
+	end

@@ -1,0 +1,975 @@
+
+scene laysGame
+	
+	include "syndicateLibraries/Lib.BaseBlipp.blp"
+
+		 files=[laysGameFont.ttf, gameIntro.ogg, gameOver.ogg, gameTune.ogg, collect.ogg, emptyBowl.mp3, chipCrack.mp3, getChance.ogg, level.mp3];
+		 variables
+		 	sH=system.screenHeight;
+		 	sW=system.screenWidth;
+		 	lrAngle=0;
+		 	chipYlocation[5]=[-sH/4.5,-sH/9,0,sH/9,sH/4.5];
+		 	currentChipYLocation;
+
+		 	currentScore=0;
+		 	stringScore="x0";
+		 	bowlFillerCounter=0;
+
+		 	velocityMultiplier=2;
+
+		 	statChipCounter=0;
+		 	statChanceCounter=0;
+		 	statBowlCounter=0;
+
+		 	spawnTime=2;
+		 	dropTime=7500;
+		 	sendingChanceFrequency=0;
+		 end
+		//==============================================================================
+		//=									ANIMATIONS								   =
+		//==============================================================================
+
+        ////	============ BASIC ANIMATIONS ============ 
+
+		animation 		Sf		type = scalefactor_xyz;	end
+		animation 		Sx		type = scalefactor_x;	end
+		animation 		Sy		type = scalefactor_y;	end
+		animation 		Sz		type = scalefactor_z;	end
+		animation 		Txyz	type = translate_xyz;	end
+		animation 		Tx		type = translate_x;		end
+		animation 		Ty		type = translate_y;		end
+		animation 		Tz		type = translate_z;		end
+		animation 		Rx		type = rotate_global;	axis = 1,0,0;	direction = auto;	end
+		animation 		Ry		type = rotate_global;	axis = 0,1,0;	direction = auto;	end
+		animation 		Rz		type = rotate_global;	axis = 0,0,1;	direction = auto;   end
+		animation 		RLx		type = rotate_local;	axis = 1,0,0;	direction = auto;	end
+		animation 		RLy		type = rotate_local;	axis = 0,1,0;	direction = auto;	end
+		animation 		RLz		type = rotate_local;	axis = 0,0,1;	direction = auto;   end
+		animation 		Fade	type = fade;			end
+		animation 		Tex		type = texture;			end
+		animation 		Vert	type = vertex;			end
+
+		//==============================================================================
+		//=									FUNCTIONS								   =
+		//==============================================================================
+		function onCreate
+				if(sH=2208)
+					velocityMultiplier=3;
+				end
+			createTexture("gameOverScore.png",256,256);
+			createTexture("chipStat.png",256,256);
+			createTexture("bowlsStat.png",256,256);
+			createTexture("chanceStat.png",256,256);
+			createTexture("LevelBoard.png",256,256);
+
+			prepareSound(gameTune.ogg, 0, loop, 1);
+			prepareSound(gameOver.ogg, 0, , 2);
+			prepareSound(collect.ogg, 0, , 3);
+			prepareSound(gameIntro.ogg, 0, , 4);
+			prepareSound(emptyBowl.mp3, 0, , 5);
+			prepareSound(chipCrack.mp3, 0, , 6);
+			prepareSound(getChance.ogg, 0, , 7);
+			prepareSound(level.mp3, 0, , 8);
+		end
+
+		function onShow
+			camera(off);
+			uiVisible(navBar,no);
+			uiVisible([peelCloseButton],no);
+			showChoosePackage();
+		end
+
+		function TELE(text)
+           telemetry("{{blipp.address}}", "{{text}}");
+     	end
+
+		function onDidGotoBackground
+			show(GRP_Menu);
+		end
+
+		function onWillGotoForeground
+			hide(GRP_Menu);
+		end
+
+		function showChoosePackage
+			show(choosePackageObjects);
+			bindAnimation(Fade, choosePackageObjects, 0, stop=1, time=300);
+			call(animateButtons, 1, -1, 1.5);
+		end
+
+		function hideChoosePackage
+			bindAnimation(Fade, choosePackageObjects, 0, stop=0, time=300);
+			hide(choosePackageObjects, 300);
+		end
+
+		function showHowToPage
+			playSound(gameIntro.ogg, 0, , 4);
+			show(howToScreen);
+			bindAnimation(Fade, howToScreen, 0, stop=1, time=300);
+		end
+
+		function hideHowToPage
+			bindAnimation(Fade, howToScreen, 0, stop=0, time=300);
+			hide(howToScreen, 300);
+		end
+
+		function gameStart
+			camera(off);
+			playSound(gameTune.ogg, 0, loop, 1);
+
+			stopCall(animateButtons);
+
+			screenLog({{velocityMultiplier}});
+			show(stableObjects);
+			bindAnimation(Fade, stableObjects, 0, stop=1, time=250);
+
+			call(updateBowlLocation, 0, -1, 0.1);
+			call(updateDeviceAngle, 0, -1, 0.1);
+			call(chipSpawn);
+
+			collisionStart(bowlCollider, borderColliders, onBorderCollision);
+			collisionStart(chipCollider, woodBoardCollider, onCrackCollision);
+			collisionStart(chipCollider, bowlCollider, onCatchCollision);
+			drawScore();
+
+			call(jumpToNextLevel, 20, -1, 20);
+
+		end
+
+		var levelNo=1;
+		var convertedLevelNo;
+
+		function jumpToNextLevel
+				playSound(level.mp3, 0, , 8);
+				levelNo++;
+				convertedLevelNo=string(levelNo);
+			
+				drawRect("LevelBoard.png",[0,0,256,256],[0,0,0,0]);
+				drawText("LevelBoard.png","laysGameFont.ttf",[128,160],[237/255,28/255,36/255,1,100,1], convertedLevelNo);
+				setTexture(LevelBoard, "LevelBoard.png");
+
+				show(skipLevel);
+				bindAnimation(Fade, skipLevel, 0, stop=1, time=200);
+				bindAnimation(Fade, skipLevel, 1000, stop=0, time=200);
+				hide(skipLevel, 1100);
+				
+				dropTime=dropTime-500;
+				spawnTime=spawnTime-0.15;
+				sendingChanceFrequency=sendingChanceFrequency+2;
+		end
+
+		function animateButtons
+			bindAnimation(Sx, animatedButton, 0, stop=sH*413/2048+35, time=750);
+			bindAnimation(Sx, animatedButton, 750, stop=sH*413/2048, time=750);
+
+			bindAnimation(Sy, animatedButton, 0, stop=sH*413/2048/2+35, time=750);
+			bindAnimation(Sy, animatedButton, 750, stop=sH*413/2048/2, time=750);
+		end
+
+		function loseChance
+			if(gameChance.imageIndex!=2)
+				stopCall(sendChance);
+				gameChance.imageIndex=gameChance.imageIndex+1;
+				call(sendChance, sendingChanceFrequency, -1, 10+sendingChanceFrequency);
+			else
+				endGame();
+			end
+		end
+
+		function sendChance
+			if(gameChance.imageIndex!=0)
+				var chance;
+				create(fallingChance, chance, location=[-sH/2,{{currentChipYLocation}},1], alpha=1, clickable=yes);
+				show(chance);
+			end
+		end
+
+		function updateDeviceAngle
+			if(system.deviceLRangle<100)
+				lrAngle=system.deviceLRangle;
+			end
+		end
+
+		function updateBowlLocation
+			//screenLog({{lrAngle}}); 
+			bindAnimation(Ty, bowls, 0, delta=velocityMultiplier*{{lrAngle}}, speed=100);
+			bindAnimation(Ty, bowlCollider, 0, delta=velocityMultiplier*{{lrAngle}}, speed=100);
+		end
+
+		function onBorderCollision(model1,model2)
+			screenLog("collision {{model2}}");
+			if({{model2}}=rightBorderCollider)
+				model1.location=sH/2-sH*1/2048,-sW/2-sW/8,0;
+				bowls.location=sH/2-sH*315/2048,-sW/2-sW/8,0;
+			elsif({{model2}}=leftBorderCollider)
+				model1.location=sH/2-sH*1/2048,sW/2+sW/8,0;
+				bowls.location=sH/2-sH*315/2048,sW/2+sW/8,0;
+			end
+		end
+
+		function onCrackCollision(model1,model2)
+			if(model1.isChip=1)
+				playSound(chipCrack.mp3, 0, , 6);
+				screenLog("collision {{model1}} , {{model2}} ");
+				delete({{model1}});
+				loseChance();
+				vibrate();
+
+				n=-1;
+				chipSprite.location=model1.location;
+				show(chipSprite);
+				call(fallenChipTextAnim, 0, 8, 0.05);
+			else
+				delete({{model1}});
+			end
+		end
+
+		function onCatchCollision(model1,model2)	
+			if(model1.isChip=1)
+				currentScore++;	
+				drawScore();
+				animatePlusOne();
+				bowlFillerCounter++;
+				screenLog("collision {{model1}}, {{model2}}");
+				delete({{model1}});
+				plusOne.imageIndex=0;
+				fillBowl();
+				statChipCounter++;
+				playSound(collect.ogg, 0, , 3, , );
+			end
+		end
+
+		function chipSpawn
+			currentChipYLocation=chipYlocation[rand(5)];
+			screenLog({{currentChipYLocation}});
+			var chip;
+			create(fallingChip, chip, location=[-sH/2,{{currentChipYLocation}},1], alpha=1);
+			show(chip);
+			call(chipSpawn, spawnTime);
+			screenLog("=============================="{{spawnTime}}"================================");
+		end
+
+		function dropItem(itemName)
+			bindAnimation(Tx, itemName, 0, delta=sH*1.1, time=dropTime);
+			screenLog("=============================="{{dropTime}}"================================");
+		end
+
+		var n= -1;
+
+		function fallenChipTextAnim
+			n++;
+       	chipSprite.textureOffset = [(n%8)/8,0];
+       		if(n=7)
+       			hide(chipSprite);
+       		end
+		end
+
+		function animatePlusOne
+			plusOne.location=bowls.location;
+			show(plusOne);
+			bindAnimation(Fade, plusOne, 0, stop=1, time=200);
+			bindAnimation(Fade, plusOne, 200, stop=0, time=200);
+		end
+
+		function drawScore
+			var convertedCurrentScore=string(currentScore);
+			stringScore = "x{{convertedCurrentScore}}";
+			createTexture("score.png",256,256);
+			drawRect("score.png",[0,0,256,256],[0,0,0,0]);
+			drawText("score.png","laysGameFont.ttf",[128,160],[237/255,28/255,36/255,1,75,1],stringScore);
+			setTexture(score, "score.png");
+		end
+
+		function emptyBowlgetPoints
+			switch
+				case (bowlFillerCounter>=3 && bowlFillerCounter<6)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+4;
+					plusOne.imageIndex=1;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=6 && bowlFillerCounter<9)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+9;
+					plusOne.imageIndex=2;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=9 && bowlFillerCounter<12)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+14;
+					plusOne.imageIndex=3;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=12 && bowlFillerCounter<15)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+19;
+					plusOne.imageIndex=4;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=15 && bowlFillerCounter<18)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+21;
+					plusOne.imageIndex=5;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=18 && bowlFillerCounter<21)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+29;
+					plusOne.imageIndex=6;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end
+				case (bowlFillerCounter>=21)
+					stopSound(5);
+					playSound(emptyBowl.mp3, 0, , 5);
+					currentScore=currentScore+34;
+					plusOne.imageIndex=7;
+					drawScore();
+					animatePlusOne();
+					statBowlCounter++;
+				end	
+			end
+		end
+
+		function fillBowl
+			switch
+				case (bowlFillerCounter=0)
+					bowls.imageIndex=0;
+				end
+				case (bowlFillerCounter=3)
+					bowls.imageIndex=1;
+				end
+				case (bowlFillerCounter=6)
+					bowls.imageIndex=2;
+				end
+				case (bowlFillerCounter=9)
+					bowls.imageIndex=3;
+				end
+				case (bowlFillerCounter=12)
+					bowls.imageIndex=4;
+				end
+				case (bowlFillerCounter=15)
+					bowls.imageIndex=5;
+				end
+				case (bowlFillerCounter=18)
+					bowls.imageIndex=6;
+				end
+				case (bowlFillerCounter=21)
+					bowls.imageIndex=7;
+				end
+				case (bowlFillerCounter>21)
+					currentScore=currentScore-20;
+					plusOne.imageIndex=8;
+					drawScore();
+					animatePlusOne();
+					bowls.imageIndex=0;
+					bowlFillerCounter=0;
+				end
+			end
+		end
+
+		function resetToGameDefaults
+			hide(all);
+		    showChoosePackage();
+			gameChance.imageIndex=0;
+			currentScore=0;
+			drawScore();
+			bowlFillerCounter=0;
+			fillBowl();
+
+			dropTime=7500;
+			spawnTime=2;
+			levelNo=1;
+			sendingChanceFrequency=5;
+
+			statChipCounter=0;
+		 	statChanceCounter=0;
+		 	statBowlCounter=0;
+		end
+
+		function showGameOverStats
+			call(animateButtons, 1, -1, 1.5);
+
+			var currentStringScore = string(currentScore);
+			var stringStatChipCounter=string(statChipCounter);
+			var stringStatChanceCounter=string(statChanceCounter);
+			var stringStatBowlCounter=string(statBowlCounter);
+			
+			drawRect("gameOverScore.png",[0,0,256,256],[0,0,0,0]);
+			drawText("gameOverScore.png","laysGameFont.ttf",[128,160],[255/255,255/255,255/255,1,90,1], currentStringScore);
+			setTexture(gameOverMainScore, "gameOverScore.png");
+
+			drawText("gameOverScore.png","laysGameFont.ttf",[128,160],[255/255,255/255,255/255,0.5,90,1], currentStringScore);
+			setTexture(gameOverMainScoreShadow, "gameOverScore.png");
+
+			drawRect("chipStat.png",[0,0,256,256],[0,0,0,0]);
+			drawText("chipStat.png","laysGameFont.ttf",[128,160],[207/255,24/255,30/255,1,90,1], stringStatChipCounter);
+			setTexture(gameOverChipScore, "chipStat.png");
+			
+			drawRect("bowlsStat.png",[0,0,256,256],[0,0,0,0]);
+			drawText("bowlsStat.png","laysGameFont.ttf",[128,160],[207/255,24/255,30/255,1,90,1], stringStatBowlCounter);
+			setTexture(gameOverBowlScore, "bowlsStat.png");
+
+			drawRect("chanceStat.png",[0,0,256,256],[0,0,0,0]);
+			drawText("chanceStat.png","laysGameFont.ttf",[128,160],[207/255,24/255,30/255,1,90,1], stringStatChanceCounter);
+			setTexture(gameOverChanceScore, "chanceStat.png");
+
+			switch
+				case (currentScore>=0 && currentScore<10)
+					gameOverShadow.scaleFactor=sH*600/2048/3,sH*600/2048/4/3,0;
+				end
+				case (currentScore>=9 && currentScore<100)
+					gameOverShadow.scaleFactor=sH*600/2048/2,sH*600/2048/4/2,0;
+				end
+				case (currentScore>=100 && currentScore<1000)
+					gameOverShadow.scaleFactor=sH*600/2048,sH*600/2048/4,0;
+				end
+				case (currentScore>=1000 && currentScore<10000)
+					gameOverShadow.scaleFactor=4*sH*600/2048/3,4*sH*600/2048/4/3,0;
+				end
+			end
+
+			show(gameOver);
+			bindAnimation(Fade, gameOver, 0, stop=1, time=350);
+
+			show(gameOverMainScoreShadow);
+			bindAnimation(Fade, gameOverMainScoreShadow, 0, stop=0.5, time=350);
+		end
+
+		function endGame
+			camera(off);
+			stopSound(1);
+			playSound(gameOver.ogg, 0, , 3);
+			delete(chipCollider);
+
+			showGameOverStats();
+
+			stopCall(updateBowlLocation);
+			stopCall(updateDeviceAngle);
+			stopCall(chipSpawn);
+			stopCall(sendChance);
+			stopCall(dropItem);
+			stopCall(animatePlusOne);
+			stopCall(drawScore);
+			stopCall(loseChance);
+			stopCall(emptyBowlgetPoints);
+			stopCall(fillBowl);
+			stopCall(jumpToNextLevel);
+
+			collisionStop(bowlCollider, borderColliders, onBorderCollision);
+			collisionStop(chipCollider, woodBoardCollider, onCrackCollision);
+			collisionStop(chipCollider, bowlCollider, onCatchCollision);
+		end
+		//==============================================================================
+		//=									CLASSES								       =
+		//==============================================================================
+
+		class Mesh		
+			transformMode = enhanced;
+		    clickable = no;
+		    collidable = no;
+		    location = 0,0,0;
+		    scale = 1;
+		    texture=trans.png;
+			attachment=screen;
+			alpha=0;
+			mesh=Cube.md2;
+			hidden=yes;
+			type=phantom;
+		end
+
+		class overlay		
+			mesh 				= system.plane;
+			scale				= 1;
+			alpha 				= 0;
+			type				= aura;
+			transformMode		= enhanced;
+			clickable 			= no;
+			attachment		= screen;
+			hidden				= yes;
+			orientation = 0,0,1,0;
+			location = 0,0,0;
+			//blend  =premult;
+		end
+
+		class fallingChipTextures : overlay
+			textures = [[chip1.jpg, chip1-A.jpg], 
+						[chip2.jpg, chip2-A.jpg], 
+						[chip3.jpg, chip3-A.jpg], 
+						[chip4.jpg, chip4-A.jpg], 
+						[chip5.jpg, chip5-A.jpg], 
+						[chip6.jpg, chip6-A.jpg], 
+						[chip7.jpg, chip7-A.jpg], 
+						[chip8.jpg, chip8-A.jpg], 
+						[chip9.jpg, chip9-A.jpg], 
+						[chip10.jpg, chip10-A.jpg]];
+		end
+
+		class fallingChip : fallingChipTextures
+			scaleFactor=sH/12,sH/12,1;
+		    orientation=0,0,1,90;
+		    alpha  = 0;
+		    hidden = yes;
+		    collidable = yes;
+           	groups=chipCollider;
+           	type=phantom;
+           	var isChip=1;
+        	function onCreate
+                this.imageIndex = rand(10);
+                dropItem(this);    
+            end
+		end
+
+		class fallingChance : overlay
+		    orientation=0,0,1,90;
+		    alpha  = 0;
+		    hidden = yes;
+		    collidable = yes;
+           	groups=chipCollider;
+           	type=phantom;
+           	var isChip=0;
+        	function onCreate
+                dropItem(this);
+            end
+            function onClick
+            playSound(getChance.ogg, 0, , 7);
+            	if(gameChance.imageIndex=2 || gameChance.imageIndex=1)
+	                gameChance.imageIndex=gameChance.imageIndex-1;
+	                delete(this);
+	                statChanceCounter++;
+                end
+            end
+            scaleFactor=sH*298/2048,sH*298/2048,1;
+			textureScale = 256/256, 256/256;
+			texture = fallingChance.jpg, fallingChance-A.jpg;
+		end
+
+		//==============================================================================
+		//=									MODELS								       =
+		//==============================================================================
+		model fallingChipLoader : fallingChipTextures
+            scaleFactor = 0,0,0;
+        end
+
+		model background: overlay
+			location=0,0,0;
+			scaleFactor=sH,sH,0;
+			textures = [[sadeBackground.jpg, sadeBackground-A.png], [tuzluBackground.jpg, tuzluBackground-A.png]];
+			textureScale = 1024/1024, 1024/1024;
+			groups=stableObjects;
+			orientation = 0,0,1,90;
+			imageIndex=1;
+		end
+
+		model woodBoard: overlay
+			location=sH/2-sH*141/2048/2,0,0;
+			scaleFactor= 16*sH*141/2048,sH*141/2048,0;
+			textureScale = 1024/1024, 64/64;
+			texture = woodenBoard.jpg, woodenBoard-A.png;
+			groups=stableObjects,woodCollider;
+			orientation = 0,0,1,90;
+			collidable=yes;
+		end
+
+		model transCollider: overlay
+			location=sH/2-sH*100/2048/2,0,0;
+			scaleFactor= sW,sH*100/2048,0;
+			texture=trans.png;
+			groups=stableObjects,transCollider;
+			orientation = 0,0,1,90;
+			collidable=yes;
+		end
+
+		model bowls: overlay
+			location=sH/2-sH*315/2048,0,0;
+			scaleFactor=1.5*sH*367/2048, 1.5*sH*367/2048,0;
+			textures=[[bowlEmpty.jpg, bowlEmpty-A.png], [bowl2.jpg, bowl2-A.png], [bowl3.jpg, bowl3-A.png], [bowl4.jpg, bowl4-A.png], [bowl5.jpg, bowl5-A.png], [bowl6.jpg, bowl6-A.png], [bowl7.jpg, bowl7-A.png], [bowlFull.jpg, bowlFull-A.png]];
+			groups=stableObjects;
+			imageIndex=0;
+			orientation = 0,0,1,90;
+			pngsPreload=yes;
+			blend=premult;
+			clickable=yes;
+			textureScale = 512/512, 512/512;
+				function onClick
+				    this.imageIndex=0;
+				    emptyBowlgetPoints();
+				    bowlFillerCounter=0;	    
+				end
+		end
+
+		model chipPackage: overlay
+			location=-sH/2+sH*1479/2048/2/2,0,0;
+			scaleFactor=sH*1479/2048, sH*1479/2048/2,0;
+			textures=[[sadePaketOyun.jpg, sadePaketOyun-A.jpg], [tuzluPaketOyun.jpg, tuzluPaketOyun-A.jpg], [yeniPaketOyun.jpg, tuzluPaketOyun-A.jpg]];
+			textureScale = 1024/1024, 512/512;
+			groups=stableObjects;
+			orientation = 0,0,1,90;
+			pngsPreload=yes;
+			imageIndex=1;
+		end
+
+		model scoreChip: overlay
+			location=-sH/2+sH*230/2048,-sH*456/2048,0;
+			scaleFactor=sH*256/2048, sH*256/2048,0;
+			textureScale = 256/256, 256/256;
+			texture = scoreChip.jpg, scoreChip-A.png;
+			groups=stableObjects;
+		end
+
+		model gameChance: overlay
+			location=-sH/2+sH*221/2048,sH*401/2048,0;
+			scaleFactor=sH*275/2048, sH*275/2048,0;
+			textures=[ [gameChanceFull.jpg, gameChanceFull-A.png], [gameChance2.jpg, gameChance2-A.png], [gameChance.jpg, gameChance-A.png]];
+			textureScale = 256/256, 256/256;
+			imageIndex=0;
+			groups=stableObjects;
+			orientation=0,0,1,90;
+			pngsPreload=yes;
+			blend=premult;
+		end
+
+		model rightBorderCollider : Mesh
+			location=sH/2,sW/1.2,0;
+			scaleFactor=0.5,0.1,0.5;
+			groups=stableObjects, borderColliders;
+			collidable=yes;
+		end
+
+		model leftBorderCollider : Mesh
+			location=sH/2,-sW/1.2,0;
+			scaleFactor=0.5,0.1,0.5;
+			groups=stableObjects, borderColliders;
+			collidable=yes;
+		end
+
+		model bowlCollider : Mesh
+			location=sH/2-sH*1/2048,0,0;
+			groups=stableObjects, bowlCollider;
+			scaleFactor=sH*1.5/2048,sH*1/2048,0.5;
+			collidable=yes;
+		end
+
+		model woodBoardCollider1 : Mesh
+			location=sH/1.8,0,0;
+			groups=stableObjects, woodBoardCollider;
+			scaleFactor=sH*1.75/2048,sH*1.75/2048,sH*1.75/2048;
+			collidable=yes;
+		end
+
+		model woodBoardCollider2 : Mesh
+			location=sH/1.8,sW/3,0;
+			groups=stableObjects, woodBoardCollider;
+			scaleFactor=sH*1.75/2048,sH*1.75/2048,sH*1.75/2048;
+			collidable=yes;
+		end
+
+		model woodBoardCollider3 : Mesh
+			location=sH/1.8,-sW/3,0;
+			groups=stableObjects, woodBoardCollider;
+			scaleFactor=sH*1.75/2048,sH*1.75/2048,sH*1.75/2048;
+			collidable=yes;
+		end
+
+		model packageHider : Mesh
+			location=-sH/2,0,1;
+			scaleFactor=sW,sH*4.5/2048,sH*1/2048;
+			groups=stableObjects;
+			orientation = 0,0,1,90;
+			type=hider;
+		end
+
+		model score: overlay
+			location=-sH/2+sH*263/2048,-sH*417/2048,0;
+			groups=stableObjects;
+			scaleFactor=2.5*sH*92/2048,2.5*sH*92/2048,1;
+			orientation = 0,0,1,90;
+			texture=trans.png;
+		end
+
+		model plusOne: overlay
+			scaleFactor=sH*140/2048, sH*140/2048,1;
+			orientation = 0,0,1,90;
+			textures=[[plusOne.jpg, plusOne-A.jpg], [4.jpg, 4-A.jpg], [9.jpg, 9-A.jpg], [14.jpg, 14-A.jpg], [19.jpg, 19-A.jpg], [21.jpg, 21-A.jpg], [29.jpg, 29-A.jpg], [34.jpg, 34-A.jpg], [minus20.jpg, minus20-A.jpg]];
+			pngsPreload=yes;
+			imageIndex=0;
+			textureScale = 128/128, 128/128;
+		end
+
+		model chipSprite: overlay
+			location=0,0,0;
+			scaleFactor=sH/6,sH/6,1;
+			orientation = 0,0,1,90;
+			textureScale = 1/8, 1;
+			textureOffset=0,0;
+			texture = chipSprite.png;
+			alpha=1;
+			blend=premult;
+		end
+
+		model LevelBackground : overlay
+			location=0,0,0;
+			scaleFactor=sH/2,sH/2,0;
+			textureScale = 256/256, 256/256;
+			texture = levelBackground.jpg, levelBackground-A.jpg;
+			orientation = 0,0,1,90;
+			groups=skipLevel;
+		end
+
+		model LevelBoard : overlay
+			location=sH/20,0,0;
+			scaleFactor=sH/8,sH/8,0;
+			texture = trans.png;
+			orientation = 0,0,1,90;
+			blend=premult;
+			groups=skipLevel;
+		end
+
+		model gameOver: overlay
+			scaleFactor=sH,sH,0;
+			orientation = 0,0,1,90;
+			location=0,0,0;
+			textureScale = 1024/1024, 1024/1024;
+			texture = gameOver.jpg;
+			groups=gameOver;
+		end
+			var modes[1]=[1];
+
+		model gameOverMainMenuButton: overlay
+			scaleFactor=sH*426/2048,sH*426/2048/2,0;
+			orientation = 0,0,1,90;
+			location=sH*844/2048,sH*269/2048,5;
+			textureScale = 512/512, 256/256;
+			texture = gameOverMainMenuButton.png, gameOverMainMenuButton-A.png;
+			groups=gameOver, animatedButton;
+			clickable=yes;
+				function onClick
+					setHTMLAspect(device);
+				    overlayHTML("https://form-ui.blippar.com/LayzRamazan?uid={{system.uniqueID}}&score={{currentScore}}", closeButton, ,);
+				    TELE("Game Scene - kazanmak için formu doldur Button is pressed");
+				end
+		end
+	
+
+		model gameOverPlayAgainButton: overlay
+			scaleFactor=sH*426/2048,sH*426/2048/2,0;
+			orientation = 0,0,1,90;
+			location=sH*844/2048,-sH*269/2048,5;
+			textureScale = 512/512, 256/256;
+			texture = gameOverPlayAgainButton.jpg, gameOverPlayAgainButton-A.png;
+			groups=gameOver, animatedButton;
+			clickable=yes;
+				function onClick
+					stopCall(animateButtons);
+				    resetToGameDefaults();
+				    TELE("Game Scene - tekrar oyna! Button is pressed");
+				end
+		end
+
+		model gameOverShadow: overlay
+			location=sH*50/2048,sH*60/2048,0;
+			scaleFactor=sH*600/2048,sH*600/2048/4,0;
+			textureScale = 512/512, 128/128;
+			texture = gameOverShadow.png, gameOverShadow-A.png;
+			groups=gameOver;
+			orientation = 0,0,1,90;
+			//-sH*1/2048
+		end
+
+		model gameOverMainScoreShadow: overlay
+			location=-sH*10/2048,sH*75/2048,0;
+			scaleFactor=sH/4.5,sH/4.5,0;
+			texture = trans.png;
+			orientation = 0,0,1,100;
+			alpha=0.5;
+		
+		end
+
+		model gameOverMainScore: overlay
+			location=-sH*10/2048,sH*60/2048,0;
+			scaleFactor=sH/4.5,sH/4.5,0;
+			texture = trans.png;
+			groups=gameOver;
+			orientation = 0,0,1,100;
+			blend=premult;
+		end
+
+		model gameOverChipScore: overlay
+			location=sH*372/2048,-sH*108/2048,0;
+			scaleFactor=sH/13,sH/13,0;
+			texture = trans.png;
+			groups=gameOver;
+			orientation = 0,0,1,98.5;
+			blend=premult;
+		end
+
+		model gameOverChanceScore: overlay
+			location=sH*276/2048,sH*384/2048,0;
+			scaleFactor=sH/13,sH/13,0;
+			texture = trans.png;
+			groups=gameOver;
+			orientation = 0,0,1,98.5;
+			blend=premult;
+		end
+
+		model gameOverBowlScore: overlay
+			location=sH*538/2048,sH*206/2048,0;
+			scaleFactor=sH/13,sH/13,0;
+			texture = trans.png;
+			groups=gameOver;
+			orientation = 0,0,1,98.5;
+			blend=premult;
+		end
+
+		model CP_Background : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = CP_Background.jpg, CP_Background-A.png;
+			groups=choosePackageObjects;
+			orientation = 0,0,1,90;
+		end
+
+		model CP_TuzluPaket : overlay
+			location=sH*350/2048,-sH*360/2048,0;
+			scaleFactor=sH*500/2048,sH*500/2048,0;
+			textureScale = 512/512, 512/512;
+			texture = CP_TuzluPaket.jpg, CP_TuzluPaket-A.jpg;
+			groups=choosePackageObjects;
+			orientation = 0,0,1,90;
+			clickable=yes;
+			function onClick
+				hide(CP_CheckMark);
+				CP_CheckMark.alpha=0;
+				CP_CheckMark.location=sH*558/2048,sH*-250/2048,0;
+			    show(CP_CheckMark);
+			    bindAnimation(Fade, CP_CheckMark, 0, stop=1, time=500);
+			    background.imageIndex=1;
+			    chipPackage.imageIndex=1;
+			    TELE("Game Scene - Lays Hafif Tuzlu package has been choosen before playing the game");
+			end
+		end
+
+		model CP_YeniPaket : overlay
+			location=sH*350/2048,sH*0/2048,0;
+			scaleFactor=sH*550/2048,sH*550/2048,0;
+			textureScale = 512/512, 512/512;
+			texture = CP_YeniPaket.jpg, CP_YeniPaket-A.jpg;
+			groups=choosePackageObjects;
+			orientation = 0,0,1,90;
+			clickable=yes;
+			function onClick
+				hide(CP_CheckMark);
+				CP_CheckMark.alpha=0;
+				CP_CheckMark.location=sH*558/2048,sH*94/2048,0;
+			    show(CP_CheckMark);
+			    bindAnimation(Fade, CP_CheckMark, 0, stop=1, time=500);
+			    background.imageIndex=1;
+			    chipPackage.imageIndex=2;
+			    TELE("Game Scene - Lays Feslegenli package has been choosen before playing the game");
+			end
+		end
+
+		model CP_SadePaket : overlay
+			location=sH*350/2048,sH*360/2048,0;
+			scaleFactor=sH*500/2048,sH*500/2048,0;
+			textureScale = 512/512, 512/512;
+			texture = CP_SadePaket.jpg, CP_SadePaket-A.png;
+			groups=choosePackageObjects;
+			orientation = 0,0,1,90;
+			clickable=yes;
+			function onClick
+			    hide(CP_CheckMark);
+			    CP_CheckMark.alpha=0;
+			    CP_CheckMark.location=sH*558/2048,sH*480/2048,0;
+			    show(CP_CheckMark);
+			    bindAnimation(Fade, CP_CheckMark, 0, stop=1, time=500);
+			    background.imageIndex=0;
+			    chipPackage.imageIndex=0;
+			    TELE("Game Scene - Lays Sade package has been choosen before playing the game");
+			end
+		end
+
+		model CP_HowToPlay : overlay
+			location=sH*845/2048,0,0;
+			scaleFactor=sH*413/2048,sH*413/2048/2,0;
+			textureScale = 512/512, 256/256;
+			texture = CP_howToPlayButton.jpg, CP_howToPlayButton-A.png;
+			groups=choosePackageObjects,animatedButton;
+			orientation = 0,0,1,90;
+			clickable=yes;
+			function onClick
+				hideChoosePackage();
+			    call(showHowToPage, 0.3);
+			    TELE("Game Scene - Nasıl oynarim? Button is pressed");
+			end
+		end
+
+		model CP_CheckMark : overlay
+			location=sH*558/2048,sH*-250/2048,0;
+			scaleFactor=sH*225/2048,sH*225/2048,0;
+			textureScale = 256/256, 256/256;
+			texture = CP_CheckMark.jpg, CP_CheckMark-A.jpg;
+			orientation = 0,0,1,90;
+			groups=choosePackageObjects;
+		end
+
+		model HowTo_Background : overlay
+			location=0,0,0;
+			scaleFactor=sH*3/4,sH,0;
+			textureScale = 768/1024, 1024/1024;
+			texture = howToPage.jpg, howToPage-A.png;
+			groups=howToScreen;
+			orientation = 0,0,1,90;
+		end
+
+		model HowTo_StartGameButton : overlay
+			location=sH*845/2048,0,0;
+			scaleFactor=sH*413/2048,sH*413/2048/2,0;
+			textureScale = 512/512, 256/256;
+			texture = howToStartGame.jpg, howToStartGame-A.png;
+			groups=howToScreen, animatedButton;
+			orientation = 0,0,1,90;
+			clickable=yes;
+			function onClick
+				hideHowToPage();
+			    call(gameStart, 0.3);
+			    TELE("Game Scene - oyuna başla! Button is pressed");
+			end
+		end
+
+		model CloseButton : PTR
+            texture = closebutton.jpg, closebutton-A.png;
+            textureScale = 128/128, 128/128;
+            scaleFactor = sH/14, sH/14, 1;
+            function onClick
+                goToScene(default);
+            end
+            function persistant
+                CloseButton.alpha = 1;
+                CloseButton.clickable = yes;
+                show(CloseButton);
+            end
+            function onCreate
+                call(CloseButton.persistant, 0, -1, 1/53);
+            end
+        end
+
+	end
